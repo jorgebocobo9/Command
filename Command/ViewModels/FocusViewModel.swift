@@ -10,7 +10,7 @@ enum FocusState: Equatable {
     case completed
 }
 
-@Observable
+@Observable @MainActor
 final class FocusViewModel {
     var focusState: FocusState = .ready
     var totalSeconds: Int = 25 * 60

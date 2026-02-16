@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 import SwiftUI
 
-@Observable
+@Observable @MainActor
 final class DashboardViewModel {
     var todayMissions: [Mission] = []
     var allActiveMissions: [Mission] = []

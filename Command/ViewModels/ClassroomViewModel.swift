@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 import SwiftUI
 
-@Observable
+@Observable @MainActor
 final class ClassroomViewModel {
     var isConnected = false
     var isSyncing = false
@@ -29,9 +29,7 @@ final class ClassroomViewModel {
         // For now, simulate sync delay
         try? await Task.sleep(for: .seconds(1))
 
-        await MainActor.run {
-            lastSynced = Date()
-            isSyncing = false
-        }
+        lastSynced = Date()
+        isSyncing = false
     }
 }

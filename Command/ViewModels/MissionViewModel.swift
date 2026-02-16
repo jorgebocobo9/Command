@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 import SwiftUI
 
-@Observable
+@Observable @MainActor
 final class MissionViewModel {
     var isDecomposing = false
     var decompositionError: String?

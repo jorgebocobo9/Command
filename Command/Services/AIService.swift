@@ -2,7 +2,7 @@ import Foundation
 import FoundationModels
 
 // Protocol for swappable AI backends
-protocol AIServiceProtocol {
+protocol AIServiceProtocol: Sendable {
     func decomposeMission(title: String, description: String) async throws -> AIDecomposition
     func generateMicroStart(for title: String) async throws -> String
 }
@@ -32,7 +32,7 @@ enum SearchPlatform: String {
 }
 
 // Apple Foundation Models implementation
-final class OnDeviceAIService: AIServiceProtocol {
+final class OnDeviceAIService: AIServiceProtocol, @unchecked Sendable {
     private var session: LanguageModelSession?
 
     private func getSession() throws -> LanguageModelSession {
@@ -88,7 +88,7 @@ final class OnDeviceAIService: AIServiceProtocol {
         """
 
         let response = try await session.respond(to: prompt)
-        return response.content.trimmingCharacters(in: .whitespacesAndNewlinessAndNewlines)
+        return response.content.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func parseDecomposition(_ text: String) -> AIDecomposition {
