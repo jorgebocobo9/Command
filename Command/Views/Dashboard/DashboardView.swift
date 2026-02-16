@@ -4,14 +4,23 @@ import SwiftData
 struct DashboardView: View {
     @Environment(\.modelContext) private var context
     @Query private var allMissions: [Mission]
+    @Query private var courses: [ClassroomCourse]
     @Query private var streaks: [Streak]
     @State private var selectedMission: Mission?
     @State private var showCreateMission = false
 
     private let energyService = EnergyService()
 
+    private var hiddenCourseIds: Set<String> {
+        Set(courses.filter { $0.isHidden }.map { $0.courseId })
+    }
+
     private var activeMissions: [Mission] {
-        allMissions.filter { $0.status != .completed && $0.status != .abandoned }
+        allMissions.filter { mission in
+            if mission.status == .completed || mission.status == .abandoned { return false }
+            if let courseId = mission.classroomCourseId, hiddenCourseIds.contains(courseId) { return false }
+            return true
+        }
     }
 
     private var todayMissions: [Mission] {

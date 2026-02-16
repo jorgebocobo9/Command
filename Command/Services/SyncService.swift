@@ -32,8 +32,20 @@ import BackgroundTasks
                 course.section = courseDTO.section
                 context.insert(course)
             }
-            // Skip hidden courses — don't sync their assignments
+            // Skip hidden courses — don't sync their assignments, and clean up any existing missions
             if course.isHidden {
+                let hiddenCourseId: String? = courseDTO.id
+                let completedStatus = MissionStatus.completed
+                let hiddenMissionDescriptor = FetchDescriptor<Mission>(
+                    predicate: #Predicate { $0.classroomCourseId == hiddenCourseId && $0.status != completedStatus }
+                )
+                if let orphanedMissions = try? context.fetch(hiddenMissionDescriptor) {
+                    for mission in orphanedMissions {
+                        let missionId = mission.id.uuidString
+                        Task { await NotificationService.shared.cancelNotifications(for: missionId) }
+                        context.delete(mission)
+                    }
+                }
                 continue
             }
 

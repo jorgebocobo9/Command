@@ -4,14 +4,26 @@ import SwiftData
 struct MissionListView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Mission.createdAt, order: .reverse) private var allMissions: [Mission]
+    @Query private var courses: [ClassroomCourse]
     @State private var selectedCategory: MissionCategory?
     @State private var searchText = ""
     @State private var selectedMission: Mission?
     @State private var showCreateMission = false
     @State private var focusMission: Mission?
 
+    private var hiddenCourseIds: Set<String> {
+        Set(courses.filter { $0.isHidden }.map { $0.courseId })
+    }
+
+    private var visibleMissions: [Mission] {
+        allMissions.filter { mission in
+            guard let courseId = mission.classroomCourseId else { return true }
+            return !hiddenCourseIds.contains(courseId)
+        }
+    }
+
     private var filteredMissions: [Mission] {
-        var result = allMissions.filter { $0.status != .completed && $0.status != .abandoned }
+        var result = visibleMissions.filter { $0.status != .completed && $0.status != .abandoned }
 
         if let category = selectedCategory {
             result = result.filter { $0.category == category }
@@ -25,7 +37,7 @@ struct MissionListView: View {
     }
 
     private var completedMissions: [Mission] {
-        allMissions.filter { $0.status == .completed }
+        visibleMissions.filter { $0.status == .completed }
     }
 
     var body: some View {
