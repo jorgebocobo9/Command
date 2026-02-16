@@ -104,30 +104,13 @@ struct CreateMissionView: View {
                     }
 
                     // Aggression
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 8) {
                         Text("AGGRESSION")
                             .font(CommandTypography.caption)
                             .foregroundStyle(CommandColors.textTertiary)
                             .tracking(1.5)
 
-                        HStack(spacing: 8) {
-                            ForEach(AggressionLevel.allCases, id: \.self) { level in
-                                Button {
-                                    withAnimation(CommandAnimations.springQuick) { aggressionLevel = level }
-                                } label: {
-                                    VStack(spacing: 4) {
-                                        AggressionBadge(level: level)
-                                        Text(level.rawValue.prefix(4).capitalized)
-                                            .font(.system(size: 9, weight: .medium))
-                                            .foregroundStyle(aggressionLevel == level ? CommandColors.textPrimary : CommandColors.textTertiary)
-                                    }
-                                    .padding(8)
-                                    .background(aggressionLevel == level ? CommandColors.surfaceElevated : CommandColors.surface)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
+                        AggressionSlider(level: $aggressionLevel)
                     }
 
                     // Deadline

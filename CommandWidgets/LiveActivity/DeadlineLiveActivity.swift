@@ -2,17 +2,6 @@ import ActivityKit
 import SwiftUI
 import WidgetKit
 
-struct DeadlineActivityAttributes: ActivityAttributes {
-    public struct ContentState: Codable, Hashable {
-        var remainingSeconds: Int
-        var isOverdue: Bool
-    }
-
-    var missionTitle: String
-    var categoryHex: String
-    var aggressionLevel: String
-}
-
 struct DeadlineLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: DeadlineActivityAttributes.self) { context in

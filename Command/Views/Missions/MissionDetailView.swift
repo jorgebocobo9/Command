@@ -185,40 +185,7 @@ struct MissionDetailView: View {
                 .foregroundStyle(CommandColors.textTertiary)
                 .tracking(1.5)
 
-            HStack(spacing: 8) {
-                ForEach(AggressionLevel.allCases, id: \.self) { level in
-                    Button {
-                        withAnimation(CommandAnimations.springQuick) {
-                            mission.aggressionLevel = level
-                        }
-                    } label: {
-                        VStack(spacing: 4) {
-                            AggressionBadge(level: level)
-                            Text(level.rawValue.capitalized)
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundStyle(mission.aggressionLevel == level ? CommandColors.textPrimary : CommandColors.textTertiary)
-                        }
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 12)
-                        .background(mission.aggressionLevel == level ? CommandColors.surfaceElevated : CommandColors.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(mission.aggressionLevel == level ? aggressionColor(level).opacity(0.5) : Color.clear, lineWidth: 1)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-    }
-
-    private func aggressionColor(_ level: AggressionLevel) -> Color {
-        switch level {
-        case .gentle: return CommandColors.success
-        case .moderate: return CommandColors.warning
-        case .aggressive: return CommandColors.urgent
-        case .nuclear: return CommandColors.urgent
+            AggressionSlider(level: $mission.aggressionLevel)
         }
     }
 

@@ -2,18 +2,6 @@ import ActivityKit
 import SwiftUI
 import WidgetKit
 
-struct FocusActivityAttributes: ActivityAttributes {
-    public struct ContentState: Codable, Hashable {
-        var remainingSeconds: Int
-        var missionTitle: String
-        var categoryHex: String
-        var isPaused: Bool
-    }
-
-    var totalMinutes: Int
-    var stepTitle: String?
-}
-
 struct FocusLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: FocusActivityAttributes.self) { context in

@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import SwiftUI
+import ActivityKit
 
 enum FocusState: Equatable {
     case ready
@@ -21,6 +22,7 @@ final class FocusViewModel {
     var mission: Mission?
 
     private var timer: Timer?
+    private var liveActivity: Activity<FocusActivityAttributes>?
 
     var accentColor: Color {
         guard let mission else { return CommandColors.school }
@@ -51,17 +53,20 @@ final class FocusViewModel {
         context.insert(session)
         currentSession = session
 
+        startLiveActivity()
         startTimer()
     }
 
     func pause() {
         focusState = .paused
         stopTimer()
+        updateLiveActivity()
     }
 
     func resume() {
         focusState = .focusing
         startTimer()
+        updateLiveActivity()
     }
 
     func takeBreak() {
@@ -70,10 +75,12 @@ final class FocusViewModel {
         if let session = currentSession {
             session.breaksTaken += 1
         }
+        endLiveActivity()
     }
 
     func continueAfterBreak() {
         focusState = .focusing
+        startLiveActivity()
         startTimer()
     }
 
@@ -83,6 +90,7 @@ final class FocusViewModel {
         stopTimer()
         focusState = .completed
         sessionsCompleted += 1
+        endLiveActivity()
 
         if let session = currentSession {
             session.endedAt = Date()
@@ -97,6 +105,7 @@ final class FocusViewModel {
     func endEarly(context: ModelContext) {
         stopTimer()
         focusState = .completed
+        endLiveActivity()
 
         if let session = currentSession {
             session.endedAt = Date()
@@ -113,16 +122,21 @@ final class FocusViewModel {
         focusState = .ready
         remainingSeconds = totalSeconds
         currentSession = nil
+        endLiveActivity()
     }
 
     private func startTimer() {
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            if self.remainingSeconds > 0 {
-                self.remainingSeconds -= 1
-            } else {
-                self.stopTimer()
-                self.focusState = .onBreak
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                if self.remainingSeconds > 0 {
+                    self.remainingSeconds -= 1
+                    self.updateLiveActivity()
+                } else {
+                    self.stopTimer()
+                    self.focusState = .onBreak
+                    self.endLiveActivity()
+                }
             }
         }
     }
@@ -130,5 +144,71 @@ final class FocusViewModel {
     private func stopTimer() {
         timer?.invalidate()
         timer = nil
+    }
+
+    // MARK: - Live Activity
+
+    private func categoryHex() -> String {
+        guard let mission else { return "00D4FF" }
+        switch mission.category {
+        case .school: return "00D4FF"
+        case .work: return "FF2D78"
+        case .personal: return "00FF88"
+        }
+    }
+
+    private func startLiveActivity() {
+        guard let mission else { return }
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+
+        let nextStep = mission.steps
+            .sorted(by: { $0.orderIndex < $1.orderIndex })
+            .first(where: { !$0.isCompleted })
+
+        let attributes = FocusActivityAttributes(
+            totalMinutes: totalSeconds / 60,
+            stepTitle: nextStep?.title
+        )
+
+        let state = FocusActivityAttributes.ContentState(
+            remainingSeconds: remainingSeconds,
+            missionTitle: mission.title,
+            categoryHex: categoryHex(),
+            isPaused: false
+        )
+
+        do {
+            liveActivity = try Activity.request(
+                attributes: attributes,
+                content: .init(state: state, staleDate: nil),
+                pushType: nil
+            )
+        } catch {
+            // Live Activity not available — silently continue
+        }
+    }
+
+    private func updateLiveActivity() {
+        guard let mission, let activity = liveActivity else { return }
+
+        let state = FocusActivityAttributes.ContentState(
+            remainingSeconds: remainingSeconds,
+            missionTitle: mission.title,
+            categoryHex: categoryHex(),
+            isPaused: focusState == .paused
+        )
+
+        Task {
+            let content = ActivityContent(state: state, staleDate: nil)
+            await activity.update(content)
+        }
+    }
+
+    private func endLiveActivity() {
+        guard let activity = liveActivity else { return }
+        Task {
+            await activity.end(ActivityContent(state: activity.content.state, staleDate: nil), dismissalPolicy: .immediate)
+        }
+        liveActivity = nil
     }
 }

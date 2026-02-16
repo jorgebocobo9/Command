@@ -17,6 +17,7 @@ targets:
     platform: iOS
     sources:
       - Command
+      - Shared
     settings:
       base:
         INFOPLIST_FILE: Command/Info.plist
@@ -34,6 +35,7 @@ targets:
     platform: iOS
     sources:
       - CommandWidgets
+      - Shared
     settings:
       base:
         INFOPLIST_FILE: CommandWidgets/Info.plist
