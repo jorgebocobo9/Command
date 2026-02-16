@@ -7,5 +7,7 @@ struct CommandWidgetBundle: WidgetBundle {
         CommandSmallWidget()
         CommandMediumWidget()
         CommandLargeWidget()
+        FocusLiveActivity()
+        DeadlineLiveActivity()
     }
 }
