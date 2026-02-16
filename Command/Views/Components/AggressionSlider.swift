@@ -90,11 +90,23 @@ struct AggressionSlider: View {
     }
 
     private func sublabel(for level: AggressionLevel) -> String {
-        switch level {
-        case .gentle: return "1 reminder, 24h before deadline"
-        case .moderate: return "5 reminders with escalating urgency"
-        case .aggressive: return "8 reminders, intense tone"
-        case .nuclear: return "Non-stop reminders until done"
+        let config = AggressionConfigStore.config(for: level)
+        let count = config.notificationCount
+        let time = formatMinutesBrief(config.firstReminderMinutes)
+        var text = "\(count) reminder\(count == 1 ? "" : "s"), starts \(time) before"
+        if level == .nuclear && config.overdueCount > 0 {
+            text += " + overdue alerts"
+        }
+        return text
+    }
+
+    private func formatMinutesBrief(_ minutes: Int) -> String {
+        if minutes >= 1440 {
+            return "\(minutes / 1440)d"
+        } else if minutes >= 60 {
+            return "\(minutes / 60)h"
+        } else {
+            return "\(minutes)m"
         }
     }
 }

@@ -12,6 +12,7 @@ struct DashboardView: View {
     @State private var searchText = ""
     @State private var isSearching = false
     @State private var selectedCategory: MissionCategory?
+    @State private var showSettings = false
 
     private var hiddenCourseIds: Set<String> {
         Set(courses.filter { $0.isHidden }.map { $0.courseId })
@@ -195,6 +196,9 @@ struct DashboardView: View {
         .fullScreenCover(item: $focusMission) { mission in
             FocusSessionView(mission: mission)
         }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+        }
     }
 
     // MARK: - Header
@@ -221,6 +225,21 @@ struct DashboardView: View {
             Spacer()
 
             HStack(spacing: 10) {
+                // Settings
+                if !isSearching {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(CommandColors.textSecondary)
+                            .frame(width: 36, height: 36)
+                            .background(CommandColors.surface)
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+
                 // Search toggle
                 Button {
                     withAnimation(CommandAnimations.springQuick) {

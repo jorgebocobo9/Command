@@ -1,5 +1,63 @@
 import Foundation
 
+// MARK: - Per-Level Config
+
+struct AggressionLevelConfig: Codable, Equatable {
+    var notificationCount: Int
+    var firstReminderMinutes: Int
+    var overdueIntervalMinutes: Int  // nuclear only
+    var overdueCount: Int            // nuclear only
+
+    static let defaultGentle = AggressionLevelConfig(
+        notificationCount: 1, firstReminderMinutes: 1440, overdueIntervalMinutes: 0, overdueCount: 0
+    )
+    static let defaultModerate = AggressionLevelConfig(
+        notificationCount: 5, firstReminderMinutes: 2880, overdueIntervalMinutes: 0, overdueCount: 0
+    )
+    static let defaultAggressive = AggressionLevelConfig(
+        notificationCount: 8, firstReminderMinutes: 4320, overdueIntervalMinutes: 0, overdueCount: 0
+    )
+    static let defaultNuclear = AggressionLevelConfig(
+        notificationCount: 8, firstReminderMinutes: 4320, overdueIntervalMinutes: 15, overdueCount: 8
+    )
+
+    static func defaultConfig(for level: AggressionLevel) -> AggressionLevelConfig {
+        switch level {
+        case .gentle: return defaultGentle
+        case .moderate: return defaultModerate
+        case .aggressive: return defaultAggressive
+        case .nuclear: return defaultNuclear
+        }
+    }
+}
+
+// MARK: - Config Storage
+
+enum AggressionConfigStore {
+    static func config(for level: AggressionLevel) -> AggressionLevelConfig {
+        let key = "aggressionConfig_\(level.rawValue)"
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let config = try? JSONDecoder().decode(AggressionLevelConfig.self, from: data) else {
+            return AggressionLevelConfig.defaultConfig(for: level)
+        }
+        return config
+    }
+
+    static func save(_ config: AggressionLevelConfig, for level: AggressionLevel) {
+        let key = "aggressionConfig_\(level.rawValue)"
+        if let data = try? JSONEncoder().encode(config) {
+            UserDefaults.standard.set(data, forKey: key)
+        }
+    }
+
+    static func resetToDefaults(for level: AggressionLevel) {
+        let key = "aggressionConfig_\(level.rawValue)"
+        UserDefaults.standard.removeObject(forKey: key)
+    }
+}
+
+// MARK: - Scheduler
+
 enum AggressionScheduler {
     struct ScheduledNotification {
         let id: String
@@ -12,117 +70,122 @@ enum AggressionScheduler {
     static func scheduleNotifications(for mission: Mission) -> [ScheduledNotification] {
         guard let deadline = mission.deadline else { return [] }
         let missionId = mission.id.uuidString
+        let config = AggressionConfigStore.config(for: mission.aggressionLevel)
 
-        switch mission.aggressionLevel {
-        case .gentle:
-            return gentleSchedule(missionId: missionId, title: mission.title, deadline: deadline)
-        case .moderate:
-            return moderateSchedule(missionId: missionId, title: mission.title, deadline: deadline)
-        case .aggressive:
-            return aggressiveSchedule(missionId: missionId, title: mission.title, deadline: deadline)
-        case .nuclear:
-            return nuclearSchedule(missionId: missionId, title: mission.title, deadline: deadline)
+        var notifications = buildPreDeadline(
+            level: mission.aggressionLevel,
+            config: config,
+            missionId: missionId,
+            title: mission.title,
+            deadline: deadline
+        )
+
+        // Nuclear: add overdue notifications
+        if mission.aggressionLevel == .nuclear && config.overdueCount > 0 && config.overdueIntervalMinutes > 0 {
+            for i in 1...config.overdueCount {
+                let fireDate = deadline.addingTimeInterval(Double(i) * Double(config.overdueIntervalMinutes) * 60)
+                guard fireDate > Date() else { continue }
+                notifications.append(ScheduledNotification(
+                    id: "\(missionId)-nuclear-overdue-\(i)",
+                    title: "OVERDUE: \(mission.title)",
+                    body: overdueMessage(minutesOverdue: i * config.overdueIntervalMinutes, title: mission.title),
+                    fireDate: fireDate,
+                    isUrgent: true
+                ))
+            }
         }
+
+        return notifications
     }
 
-    // MARK: - Gentle: 1 notification, 24h before
+    // MARK: - Build Pre-Deadline Notifications
 
-    private static func gentleSchedule(missionId: String, title: String, deadline: Date) -> [ScheduledNotification] {
-        let fireDate = deadline.addingTimeInterval(-24 * 3600)
-        guard fireDate > Date() else { return [] }
-        return [
-            ScheduledNotification(
-                id: "\(missionId)-gentle-1",
-                title: "Reminder: \(title)",
-                body: "Due tomorrow. You've got this.",
-                fireDate: fireDate,
-                isUrgent: false
+    private static func buildPreDeadline(
+        level: AggressionLevel,
+        config: AggressionLevelConfig,
+        missionId: String,
+        title: String,
+        deadline: Date
+    ) -> [ScheduledNotification] {
+        let count = max(1, config.notificationCount)
+        let totalSeconds = Double(config.firstReminderMinutes) * 60
+
+        // Evenly space notifications from firstReminder to deadline
+        var notifications: [ScheduledNotification] = []
+        for i in 0..<count {
+            let fraction = count == 1 ? 1.0 : Double(i) / Double(count - 1)
+            let offsetFromDeadline = totalSeconds * (1.0 - fraction)
+            let fireDate = deadline.addingTimeInterval(-offsetFromDeadline)
+            guard fireDate > Date() else { continue }
+
+            let minutesBefore = Int(offsetFromDeadline / 60)
+            let (ntitle, body) = notificationContent(
+                level: level, title: title, minutesBefore: minutesBefore,
+                index: i, total: count
             )
-        ]
-    }
 
-    // MARK: - Moderate: 3 notifications + 2 re-notifies
-
-    private static func moderateSchedule(missionId: String, title: String, deadline: Date) -> [ScheduledNotification] {
-        var notifications: [ScheduledNotification] = []
-        let intervals: [(TimeInterval, String, String)] = [
-            (-48 * 3600, "Heads up", "'\(title)' is due in 2 days."),
-            (-24 * 3600, "Due tomorrow", "'\(title)' — time to lock in."),
-            (-6 * 3600, "6 hours left", "'\(title)' needs your attention now."),
-            (-2 * 3600, "2 hours left", "'\(title)' is almost due. Focus up."),
-            (-30 * 60, "30 minutes", "'\(title)' — this is it. Finish now.")
-        ]
-
-        for (i, entry) in intervals.enumerated() {
-            let fireDate = deadline.addingTimeInterval(entry.0)
-            guard fireDate > Date() else { continue }
             notifications.append(ScheduledNotification(
-                id: "\(missionId)-moderate-\(i)",
-                title: entry.1,
-                body: entry.2,
+                id: "\(missionId)-\(level.rawValue)-\(i)",
+                title: ntitle,
+                body: body,
                 fireDate: fireDate,
-                isUrgent: i >= 3
+                isUrgent: fraction > 0.6
             ))
         }
         return notifications
     }
 
-    // MARK: - Aggressive: 8 notifications with escalating tone
+    // MARK: - Content Generation
 
-    private static func aggressiveSchedule(missionId: String, title: String, deadline: Date) -> [ScheduledNotification] {
-        var notifications: [ScheduledNotification] = []
-        let intervals: [(TimeInterval, String, String)] = [
-            (-72 * 3600, "3 days out", "'\(title)' — start now to stay ahead."),
-            (-48 * 3600, "2 days left", "'\(title)' — you need to move on this."),
-            (-24 * 3600, "Tomorrow", "'\(title)' is due TOMORROW. No more delays."),
-            (-12 * 3600, "12 hours", "'\(title)' — halfway to deadline. Are you working?"),
-            (-6 * 3600, "6 hours", "'\(title)' — this is getting tight."),
-            (-3 * 3600, "3 hours", "'\(title)' — seriously, do it now."),
-            (-1 * 3600, "1 hour", "'\(title)' — final hour. Lock in or fail."),
-            (-15 * 60, "15 minutes", "'\(title)' — you're about to miss this.")
-        ]
+    private static func notificationContent(
+        level: AggressionLevel, title: String, minutesBefore: Int,
+        index: Int, total: Int
+    ) -> (String, String) {
+        let timeStr = formatMinutes(minutesBefore)
+        let progress = total <= 1 ? 1.0 : Double(index) / Double(total - 1)
 
-        for (i, entry) in intervals.enumerated() {
-            let fireDate = deadline.addingTimeInterval(entry.0)
-            guard fireDate > Date() else { continue }
-            notifications.append(ScheduledNotification(
-                id: "\(missionId)-aggressive-\(i)",
-                title: entry.1,
-                body: entry.2,
-                fireDate: fireDate,
-                isUrgent: i >= 5
-            ))
+        switch level {
+        case .gentle:
+            return ("Reminder: \(title)", "Due in \(timeStr). You've got this.")
+        case .moderate:
+            if progress < 0.5 {
+                return ("Heads up: \(title)", "'\(title)' is due in \(timeStr).")
+            } else if progress < 0.8 {
+                return ("\(timeStr) left", "'\(title)' needs your attention now.")
+            } else {
+                return ("\(timeStr) left", "'\(title)' — finish it now.")
+            }
+        case .aggressive, .nuclear:
+            if progress < 0.3 {
+                return ("\(timeStr) out", "'\(title)' — start now to stay ahead.")
+            } else if progress < 0.6 {
+                return ("\(timeStr) left", "'\(title)' — you need to move on this.")
+            } else if progress < 0.85 {
+                return ("\(timeStr) left", "'\(title)' — seriously, do it now.")
+            } else {
+                return ("\(timeStr)", "'\(title)' — you're about to miss this.")
+            }
         }
-        return notifications
     }
 
-    // MARK: - Nuclear: 8 pre-deadline + every 15min when overdue
-
-    private static func nuclearSchedule(missionId: String, title: String, deadline: Date) -> [ScheduledNotification] {
-        var notifications = aggressiveSchedule(missionId: missionId, title: title, deadline: deadline)
-
-        // Post-deadline: every 15 minutes for 2 hours
-        for i in 1...8 {
-            let fireDate = deadline.addingTimeInterval(Double(i) * 15 * 60)
-            guard fireDate > Date() else { continue }
-            notifications.append(ScheduledNotification(
-                id: "\(missionId)-nuclear-overdue-\(i)",
-                title: "OVERDUE: \(title)",
-                body: overduMessage(minutesOverdue: i * 15, title: title),
-                fireDate: fireDate,
-                isUrgent: true
-            ))
+    private static func formatMinutes(_ minutes: Int) -> String {
+        if minutes >= 1440 {
+            let days = minutes / 1440
+            return days == 1 ? "1 day" : "\(days) days"
+        } else if minutes >= 60 {
+            let hours = minutes / 60
+            return hours == 1 ? "1 hour" : "\(hours) hours"
+        } else {
+            return "\(minutes) min"
         }
-        return notifications
     }
 
-    private static func overduMessage(minutesOverdue: Int, title: String) -> String {
-        switch minutesOverdue {
-        case 0..<30:
+    private static func overdueMessage(minutesOverdue: Int, title: String) -> String {
+        if minutesOverdue < 30 {
             return "'\(title)' is overdue. Submit it NOW."
-        case 30..<60:
+        } else if minutesOverdue < 60 {
             return "'\(title)' — \(minutesOverdue)min overdue. This is unacceptable."
-        default:
+        } else {
             return "'\(title)' — \(minutesOverdue)min overdue. Every minute counts. DO IT."
         }
     }

@@ -5,11 +5,15 @@ struct CreateMissionView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
 
+    @AppStorage("defaultAggressionLevel") private var defaultAggression: String = AggressionLevel.moderate.rawValue
+    @AppStorage("defaultCategory") private var defaultCategorySetting: String = MissionCategory.school.rawValue
+
     @State private var title = ""
     @State private var description = ""
     @State private var category: MissionCategory = .school
     @State private var priority: MissionPriority = .medium
     @State private var aggressionLevel: AggressionLevel = .moderate
+    @State private var didApplyDefaults = false
     @State private var hasDeadline = false
     @State private var deadline = Date().addingTimeInterval(86400)
     @State private var isDecomposing = false
@@ -155,6 +159,17 @@ struct CreateMissionView: View {
             .navigationTitle("New Mission")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
+            .onAppear {
+                if !didApplyDefaults {
+                    didApplyDefaults = true
+                    if let cat = MissionCategory(rawValue: defaultCategorySetting) {
+                        category = cat
+                    }
+                    if let agg = AggressionLevel(rawValue: defaultAggression) {
+                        aggressionLevel = agg
+                    }
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Cancel") { dismiss() }

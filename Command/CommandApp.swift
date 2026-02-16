@@ -1,8 +1,65 @@
 import SwiftUI
 import SwiftData
+import UIKit
+@preconcurrency import UserNotifications
+
+// MARK: - App Delegate for Notification Handling
+
+class AppDelegate: NSObject, UIApplicationDelegate, @unchecked Sendable {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
+}
+
+extension AppDelegate: UNUserNotificationCenterDelegate {
+    // Show notifications even when app is in foreground
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .sound, .badge]
+    }
+
+    // Handle notification action buttons
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        let actionId = response.actionIdentifier
+        let missionId = response.notification.request.identifier.components(separatedBy: "-").first ?? ""
+
+        switch actionId {
+        case "COMPLETE_ACTION":
+            await MainActor.run {
+                NotificationCenter.default.post(name: .missionCompleteAction, object: nil, userInfo: ["missionId": missionId])
+            }
+        case "SNOOZE_ACTION":
+            await NotificationService.shared.scheduleIntervalNotification(
+                id: "\(missionId)-snooze-\(Date().timeIntervalSince1970)",
+                title: "Snoozed reminder",
+                body: "Time's up — get back to it.",
+                interval: 15 * 60
+            )
+        case "START_FOCUS_ACTION":
+            await MainActor.run {
+                NotificationCenter.default.post(name: .missionFocusAction, object: nil, userInfo: ["missionId": missionId])
+            }
+        default:
+            break
+        }
+    }
+}
+
+extension Notification.Name {
+    static let missionCompleteAction = Notification.Name("missionCompleteAction")
+    static let missionFocusAction = Notification.Name("missionFocusAction")
+}
 
 @main
 struct CommandApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Mission.self,
@@ -35,7 +92,6 @@ struct ContentView: View {
 
     // Urgent/Nuclear overlay state
     @Query private var allMissions: [Mission]
-    @State private var showNuclearInterstitial = false
     @State private var nuclearMission: Mission?
     @State private var showUrgentBanner = false
     @State private var urgentBannerMission: Mission?
@@ -90,11 +146,9 @@ struct ContentView: View {
                     .zIndex(100)
                 }
             }
-            .fullScreenCover(isPresented: $showNuclearInterstitial) {
-                if let mission = nuclearMission {
-                    NuclearInterstitialView(mission: mission) {
-                        showNuclearInterstitial = false
-                    }
+            .fullScreenCover(item: $nuclearMission) { mission in
+                NuclearInterstitialView(mission: mission) {
+                    nuclearMission = nil
                 }
             }
             .sheet(item: $selectedUrgentMission) { mission in
@@ -113,7 +167,12 @@ struct ContentView: View {
                     }
                 }
 
-                // Check for urgent/nuclear overdue missions
+                // Small delay to let @Query reflect data
+                try? await Task.sleep(for: .milliseconds(300))
+                checkForUrgentMissions()
+            }
+            .onChange(of: allMissions.count) {
+                // Re-check when missions update (catches async inserts)
                 checkForUrgentMissions()
             }
         }
@@ -123,7 +182,6 @@ struct ContentView: View {
         // Nuclear overdue → full-screen interstitial
         if let nuclear = overdueMissions.first(where: { $0.aggressionLevel == .nuclear }) {
             nuclearMission = nuclear
-            showNuclearInterstitial = true
             return
         }
 
