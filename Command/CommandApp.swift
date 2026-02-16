@@ -183,7 +183,7 @@ struct FocusLauncherView: View {
                         )
                         .padding(.top, 40)
                     } else {
-                        ForEach(activeMissions, id: \.id) { mission in
+                        ForEach(activeMissions.sorted { $0.urgencyScore > $1.urgencyScore }, id: \.id) { mission in
                             MissionCard(mission: mission) {
                                 selectedMission = mission
                             }

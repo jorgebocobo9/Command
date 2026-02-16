@@ -33,7 +33,7 @@ struct MissionListView: View {
             result = result.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
         }
 
-        return result
+        return result.sorted { $0.urgencyScore > $1.urgencyScore }
     }
 
     private var completedMissions: [Mission] {

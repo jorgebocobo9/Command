@@ -8,6 +8,7 @@ struct DashboardView: View {
     @Query private var streaks: [Streak]
     @State private var selectedMission: Mission?
     @State private var showCreateMission = false
+    @State private var focusMission: Mission?
 
     private var hiddenCourseIds: Set<String> {
         Set(courses.filter { $0.isHidden }.map { $0.courseId })
@@ -21,27 +22,45 @@ struct DashboardView: View {
         }
     }
 
+    // Auto-prioritized by urgency score
+    private var sortedMissions: [Mission] {
+        activeMissions.sorted { $0.urgencyScore > $1.urgencyScore }
+    }
+
     private var overdueMissions: [Mission] {
-        activeMissions.filter { $0.isOverdue }
-            .sorted { ($0.deadline ?? .distantFuture) < ($1.deadline ?? .distantFuture) }
+        sortedMissions.filter { $0.isOverdue }
     }
 
     private var dueTodayMissions: [Mission] {
         let calendar = Calendar.current
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date()))!
-        return activeMissions.filter { mission in
+        return sortedMissions.filter { mission in
             guard let deadline = mission.deadline else { return false }
             return !mission.isOverdue && deadline <= endOfDay
-        }.sorted { ($0.deadline ?? .distantFuture) < ($1.deadline ?? .distantFuture) }
+        }
     }
 
     private var upcomingMissions: [Mission] {
         let calendar = Calendar.current
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date()))!
-        return activeMissions.filter { mission in
+        return sortedMissions.filter { mission in
             guard let deadline = mission.deadline else { return true }
             return deadline > endOfDay
-        }.sorted { ($0.deadline ?? .distantFuture) < ($1.deadline ?? .distantFuture) }
+        }
+    }
+
+    // Daily briefing: top missions to tackle today, ordered by urgency
+    private var dailyPlan: [Mission] {
+        let urgent = overdueMissions + dueTodayMissions
+        if urgent.isEmpty {
+            // No urgent tasks — suggest top 3 by score
+            return Array(sortedMissions.prefix(3))
+        }
+        return urgent
+    }
+
+    private var dailyPlanMinutes: Int {
+        dailyPlan.reduce(0) { $0 + ($1.estimatedMinutes ?? 25) }
     }
 
     private var currentStreak: Int {
@@ -116,6 +135,11 @@ struct DashboardView: View {
                     }
                     .padding(.horizontal, 16)
 
+                    // Daily Briefing
+                    if !activeMissions.isEmpty {
+                        dailyBriefing
+                    }
+
                     // Mission sections
                     if activeMissions.isEmpty {
                         EmptyStateView(
@@ -181,7 +205,97 @@ struct DashboardView: View {
         .sheet(isPresented: $showCreateMission) {
             CreateMissionView()
         }
+        .fullScreenCover(item: $focusMission) { mission in
+            FocusSessionView(mission: mission)
+        }
     }
+
+    // MARK: - Daily Briefing
+
+    private var dailyBriefing: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                SectionHeader("YOUR PLAN")
+                Spacer()
+                Text("\(dailyPlanMinutes)m total")
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(CommandColors.textTertiary)
+            }
+
+            ForEach(Array(dailyPlan.enumerated()), id: \.element.id) { index, mission in
+                HStack(spacing: 12) {
+                    // Order number
+                    Text("\(index + 1)")
+                        .font(.system(size: 13, weight: .bold, design: .monospaced))
+                        .foregroundStyle(CommandColors.categoryColor(mission.category))
+                        .frame(width: 24, height: 24)
+                        .background(CommandColors.categoryColor(mission.category).opacity(0.1))
+                        .clipShape(Circle())
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(mission.title)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(CommandColors.textPrimary)
+                            .lineLimit(1)
+
+                        HStack(spacing: 8) {
+                            if let mins = mission.estimatedMinutes {
+                                Text("\(mins)m")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(CommandColors.textTertiary)
+                            }
+                            if mission.isOverdue {
+                                Text("OVERDUE")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(CommandColors.urgent)
+                            } else if let deadline = mission.deadline {
+                                Text(deadline, style: .relative)
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(CommandColors.textTertiary)
+                            }
+                        }
+                    }
+
+                    Spacer()
+
+                    // Quick focus button
+                    Button {
+                        Haptic.impact(.light)
+                        focusMission = mission
+                    } label: {
+                        Image(systemName: "scope")
+                            .font(.system(size: 14))
+                            .foregroundStyle(CommandColors.categoryColor(mission.category))
+                            .frame(width: 32, height: 32)
+                            .background(CommandColors.categoryColor(mission.category).opacity(0.1))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.vertical, 4)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    selectedMission = mission
+                }
+            }
+        }
+        .padding(16)
+        .background(
+            LinearGradient(
+                colors: [CommandColors.school.opacity(0.04), CommandColors.surface],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(CommandColors.school.opacity(0.15), lineWidth: 0.5)
+        )
+        .padding(.horizontal, 16)
+    }
+
+    // MARK: - Components
 
     private func quickStat(count: Int, label: String, color: Color) -> some View {
         VStack(spacing: 2) {
