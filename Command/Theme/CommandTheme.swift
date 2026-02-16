@@ -5,6 +5,7 @@ struct CommandTheme: ViewModifier {
         content
             .preferredColorScheme(.dark)
             .tint(CommandColors.school)
+            .background(CommandColors.background.ignoresSafeArea())
     }
 }
 

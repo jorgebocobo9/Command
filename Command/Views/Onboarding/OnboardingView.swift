@@ -1,6 +1,8 @@
 import SwiftUI
+import SwiftData
 
 struct OnboardingView: View {
+    @Environment(\.modelContext) private var context
     @State private var currentPage = 0
     @State private var wakeTime = Calendar.current.date(from: DateComponents(hour: 7, minute: 0)) ?? Date()
     @State private var sleepTime = Calendar.current.date(from: DateComponents(hour: 23, minute: 0)) ?? Date()
@@ -200,7 +202,7 @@ struct OnboardingView: View {
 
             VStack(spacing: 12) {
                 Button {
-                    // ClassroomService.authenticate() will be wired during integration
+                    saveEnergyProfile()
                     onComplete()
                 } label: {
                     HStack {
@@ -221,6 +223,7 @@ struct OnboardingView: View {
                 .buttonStyle(.plain)
 
                 Button {
+                    saveEnergyProfile()
                     onComplete()
                 } label: {
                     Text("Skip for now")
@@ -232,5 +235,45 @@ struct OnboardingView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 60)
         }
+    }
+
+    private func saveEnergyProfile() {
+        let calendar = Calendar.current
+        let wakeHour = calendar.component(.hour, from: wakeTime)
+        let sleepHour = calendar.component(.hour, from: sleepTime)
+
+        // Determine peak hours range based on preference
+        let peakStart: Int
+        let peakEnd: Int
+        switch peakHours {
+        case .morning:
+            peakStart = wakeHour
+            peakEnd = min(wakeHour + 4, 14)
+        case .afternoon:
+            peakStart = 12
+            peakEnd = 17
+        case .evening:
+            peakStart = 17
+            peakEnd = min(sleepHour, 23)
+        }
+
+        // Seed energy profiles for each hour of each day
+        for dayOfWeek in 1...7 {
+            for hour in 0..<24 {
+                let profile = EnergyProfile(hourOfDay: hour, dayOfWeek: dayOfWeek)
+
+                if hour < wakeHour || hour >= sleepHour {
+                    profile.averageProductivity = 0.1
+                } else if hour >= peakStart && hour < peakEnd {
+                    profile.averageProductivity = 0.85
+                } else {
+                    profile.averageProductivity = 0.5
+                }
+
+                profile.sampleCount = 1
+                context.insert(profile)
+            }
+        }
+        try? context.save()
     }
 }

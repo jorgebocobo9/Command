@@ -77,6 +77,8 @@ final class FocusViewModel {
         startTimer()
     }
 
+    private let energyService = EnergyService()
+
     func complete(context: ModelContext) {
         stopTimer()
         focusState = .completed
@@ -86,6 +88,9 @@ final class FocusViewModel {
             session.endedAt = Date()
             session.wasCompleted = true
             try? context.save()
+
+            // Record session to energy profile
+            energyService.recordSession(session, context: context)
         }
     }
 
@@ -97,6 +102,9 @@ final class FocusViewModel {
             session.endedAt = Date()
             session.wasCompleted = false
             try? context.save()
+
+            // Record partial session to energy profile
+            energyService.recordSession(session, context: context)
         }
     }
 

@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 
-actor EnergyService {
+@MainActor final class EnergyService {
     func recordSession(_ session: FocusSession, context: ModelContext) {
         guard let duration = session.durationMinutes, duration > 0 else { return }
 

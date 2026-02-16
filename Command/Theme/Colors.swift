@@ -1,11 +1,11 @@
 import SwiftUI
 
 enum CommandColors {
-    // Backgrounds
-    static let background = Color(hex: "0A0A0F")
-    static let surface = Color(hex: "12121A")
-    static let surfaceElevated = Color(hex: "1A1A25")
-    static let surfaceBorder = Color(hex: "2A2A35")
+    // Backgrounds — stepped for clear layer separation
+    static let background = Color(hex: "08080D")
+    static let surface = Color(hex: "141420")
+    static let surfaceElevated = Color(hex: "1C1C2E")
+    static let surfaceBorder = Color(hex: "2C2C40")
 
     // Category accents
     static let school = Color(hex: "00D4FF")       // Cyan

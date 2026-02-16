@@ -3,6 +3,7 @@ import SwiftUI
 struct TodayMissionsView: View {
     let missions: [Mission]
     let energyLevel: Double
+    var onCreateTap: (() -> Void)? = nil
     let onMissionTap: (Mission) -> Void
 
     var body: some View {
@@ -19,11 +20,13 @@ struct TodayMissionsView: View {
             }
 
             if missions.isEmpty {
-                Text("No missions scheduled for today")
-                    .font(CommandTypography.body)
-                    .foregroundStyle(CommandColors.textSecondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 20)
+                EmptyStateView(
+                    icon: "target",
+                    title: "All clear",
+                    subtitle: "No missions due today. Create one to get started.",
+                    actionLabel: "New Mission",
+                    action: onCreateTap
+                )
             } else {
                 ForEach(missions, id: \.id) { mission in
                     MissionCard(mission: mission) {

@@ -8,6 +8,7 @@ final class ClassroomCourse {
     var section: String?
     var lastSyncedAt: Date = Date()
     var isActive: Bool = true
+    var isHidden: Bool = false
 
     init(courseId: String, name: String) {
         self.courseId = courseId

@@ -1,6 +1,6 @@
 import Foundation
 
-actor MicroStartGenerator {
+@MainActor final class MicroStartGenerator {
     private let aiService: any AIServiceProtocol
 
     init(aiService: any AIServiceProtocol) {

@@ -4,147 +4,195 @@ struct PressureRadarView: View {
     let missions: [Mission]
     let onMissionTap: (Mission) -> Void
 
-    @State private var sweepAngle: Double = 0
     @State private var appeared = false
 
-    private let ringCount = 3
-    private let size: CGFloat = 280
+    private let dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    private let categories: [MissionCategory] = [.school, .work, .personal]
 
     var body: some View {
-        ZStack {
-            // Radar rings
-            ForEach(1...ringCount, id: \.self) { ring in
-                Circle()
-                    .stroke(CommandColors.surfaceBorder.opacity(0.3), lineWidth: 0.5)
-                    .frame(width: size * CGFloat(ring) / CGFloat(ringCount),
-                           height: size * CGFloat(ring) / CGFloat(ringCount))
-            }
+        VStack(alignment: .leading, spacing: 12) {
+            Text("PRESSURE MAP")
+                .font(CommandTypography.caption)
+                .foregroundStyle(CommandColors.textTertiary)
+                .tracking(1.5)
 
-            // Ring labels
-            VStack {
-                Spacer()
-                HStack(spacing: 0) {
-                    ringLabel("today", offset: size * 0.17)
-                    ringLabel("week", offset: size * 0.17)
-                    ringLabel("month", offset: size * 0.15)
+            // 7-day heatmap grid
+            VStack(spacing: 4) {
+                // Day labels
+                HStack(spacing: 4) {
+                    // Category label spacer
+                    Color.clear.frame(width: 52, height: 12)
+
+                    ForEach(0..<7, id: \.self) { dayOffset in
+                        Text(dayLabel(for: dayOffset))
+                            .font(.system(size: 9, weight: .medium, design: .monospaced))
+                            .foregroundStyle(dayOffset == 0 ? CommandColors.textPrimary : CommandColors.textTertiary)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+
+                // Category rows
+                ForEach(categories, id: \.self) { category in
+                    HStack(spacing: 4) {
+                        Text(category.rawValue.uppercased())
+                            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(CommandColors.categoryColor(category).opacity(0.7))
+                            .frame(width: 52, alignment: .leading)
+
+                        ForEach(0..<7, id: \.self) { dayOffset in
+                            let pressure = cellPressure(category: category, dayOffset: dayOffset)
+                            let cellMissions = missionsFor(category: category, dayOffset: dayOffset)
+
+                            PressureCell(
+                                pressure: pressure,
+                                missionCount: cellMissions.count,
+                                color: CommandColors.categoryColor(category),
+                                isToday: dayOffset == 0,
+                                appeared: appeared
+                            )
+                            .onTapGesture {
+                                if let first = cellMissions.first {
+                                    onMissionTap(first)
+                                }
+                            }
+                        }
+                    }
                 }
             }
-            .frame(width: size, height: size / 2)
 
-            // Sweep line
-            SweepLine(angle: sweepAngle)
-                .stroke(
-                    LinearGradient(
-                        colors: [CommandColors.school.opacity(0.4), CommandColors.school.opacity(0)],
-                        startPoint: .center,
-                        endPoint: .trailing
-                    ),
-                    lineWidth: 1
+            // Urgency summary bar
+            HStack(spacing: 16) {
+                urgencyStat(
+                    count: missions.filter { $0.isOverdue }.count,
+                    label: "OVERDUE",
+                    color: CommandColors.urgent
                 )
-                .frame(width: size, height: size)
-
-            // Mission blips
-            ForEach(missions.prefix(20), id: \.id) { mission in
-                MissionBlip(
-                    mission: mission,
-                    radarSize: size,
-                    appeared: appeared
+                urgencyStat(
+                    count: missions.filter { dueTodayOrTomorrow($0) }.count,
+                    label: "DUE SOON",
+                    color: CommandColors.warning
                 )
-                .onTapGesture { onMissionTap(mission) }
+                urgencyStat(
+                    count: missions.count,
+                    label: "ACTIVE",
+                    color: CommandColors.textSecondary
+                )
+                Spacer()
             }
-
-            // Center dot
-            Circle()
-                .fill(CommandColors.textPrimary)
-                .frame(width: 4, height: 4)
+            .padding(.top, 4)
         }
-        .frame(width: size, height: size)
+        .padding(16)
+        .background(CommandColors.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(CommandColors.surfaceBorder, lineWidth: 0.5)
+        )
         .onAppear {
-            withAnimation(.linear(duration: 8).repeatForever(autoreverses: false)) {
-                sweepAngle = 360
-            }
-            withAnimation(CommandAnimations.spring.delay(0.3)) {
+            withAnimation(CommandAnimations.spring.delay(0.2)) {
                 appeared = true
             }
         }
     }
 
-    private func ringLabel(_ text: String, offset: CGFloat) -> some View {
-        Text(text)
-            .font(.system(size: 9, weight: .medium))
-            .foregroundStyle(CommandColors.textTertiary)
-            .frame(width: offset)
-    }
-}
-
-struct SweepLine: Shape {
-    var angle: Double
-
-    var animatableData: Double {
-        get { angle }
-        set { angle = newValue }
+    private func dayLabel(for offset: Int) -> String {
+        let calendar = Calendar.current
+        let date = calendar.date(byAdding: .day, value: offset, to: Date())!
+        if offset == 0 { return "NOW" }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE"
+        return formatter.string(from: date).uppercased()
     }
 
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        let radius = min(rect.width, rect.height) / 2
-        let endPoint = CGPoint(
-            x: center.x + radius * cos(CGFloat(angle - 90) * .pi / 180),
-            y: center.y + radius * sin(CGFloat(angle - 90) * .pi / 180)
-        )
-        path.move(to: center)
-        path.addLine(to: endPoint)
-        return path
-    }
-}
+    private func missionsFor(category: MissionCategory, dayOffset: Int) -> [Mission] {
+        let calendar = Calendar.current
+        let targetDate = calendar.date(byAdding: .day, value: dayOffset, to: Date())!
+        let startOfDay = calendar.startOfDay(for: targetDate)
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
 
-struct MissionBlip: View {
-    let mission: Mission
-    let radarSize: CGFloat
-    let appeared: Bool
-
-    var body: some View {
-        Circle()
-            .fill(CommandColors.categoryColor(mission.category))
-            .frame(width: blipSize, height: blipSize)
-            .glow(CommandColors.categoryColor(mission.category), radius: mission.isOverdue ? 8 : 4, intensity: urgency)
-            .offset(x: appeared ? position.x : 0, y: appeared ? position.y : 0)
-            .opacity(appeared ? 1 : 0)
-    }
-
-    private var blipSize: CGFloat {
-        switch mission.cognitiveLoad {
-        case .light: return 6
-        case .moderate: return 8
-        case .heavy: return 10
-        case .extreme: return 12
-        case .none: return 7
+        return missions.filter { mission in
+            guard mission.category == category else { return false }
+            if dayOffset == 0 {
+                // Today: include overdue + due today
+                guard let deadline = mission.deadline else { return false }
+                return deadline <= endOfDay
+            } else {
+                guard let deadline = mission.deadline else { return false }
+                return deadline >= startOfDay && deadline < endOfDay
+            }
         }
     }
 
-    private var urgency: Double {
-        guard let deadline = mission.deadline else { return 0.3 }
-        let hoursLeft = deadline.timeIntervalSinceNow / 3600
-        if hoursLeft <= 0 { return 1.0 }
-        if hoursLeft <= 24 { return 0.8 }
-        if hoursLeft <= 168 { return 0.5 }
-        return 0.3
+    private func cellPressure(category: MissionCategory, dayOffset: Int) -> Double {
+        let cellMissions = missionsFor(category: category, dayOffset: dayOffset)
+        if cellMissions.isEmpty { return 0 }
+
+        var pressure = Double(cellMissions.count) * 0.3
+
+        for mission in cellMissions {
+            if mission.isOverdue { pressure += 0.4 }
+            switch mission.aggressionLevel {
+            case .nuclear: pressure += 0.3
+            case .aggressive: pressure += 0.2
+            case .moderate: pressure += 0.1
+            case .gentle: break
+            }
+        }
+
+        return min(pressure, 1.0)
     }
 
-    private var distanceFromCenter: CGFloat {
-        guard let deadline = mission.deadline else { return radarSize * 0.45 }
-        let hoursLeft = deadline.timeIntervalSinceNow / 3600
-        if hoursLeft <= 0 { return 10 }
-        if hoursLeft <= 24 { return radarSize * 0.15 }
-        if hoursLeft <= 168 { return radarSize * 0.30 }
-        return radarSize * 0.42
+    private func dueTodayOrTomorrow(_ mission: Mission) -> Bool {
+        guard let deadline = mission.deadline else { return false }
+        return deadline.timeIntervalSinceNow > 0 && deadline.timeIntervalSinceNow < 48 * 3600
     }
 
-    private var position: CGPoint {
-        let hash = mission.id.hashValue
-        let angle = Double(abs(hash) % 360) * .pi / 180
-        let distance = distanceFromCenter
-        return CGPoint(x: distance * cos(angle), y: distance * sin(angle))
+    private func urgencyStat(count: Int, label: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("\(count)")
+                .font(.system(size: 20, weight: .bold, design: .monospaced))
+                .foregroundStyle(count > 0 ? color : CommandColors.textTertiary)
+            Text(label)
+                .font(.system(size: 8, weight: .semibold, design: .monospaced))
+                .foregroundStyle(CommandColors.textTertiary)
+                .tracking(0.5)
+        }
+    }
+}
+
+struct PressureCell: View {
+    let pressure: Double
+    let missionCount: Int
+    let color: Color
+    let isToday: Bool
+    let appeared: Bool
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 3)
+            .fill(cellColor)
+            .frame(maxWidth: .infinity)
+            .aspectRatio(1, contentMode: .fit)
+            .overlay {
+                if missionCount > 0 {
+                    Text("\(missionCount)")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundStyle(pressure > 0.5 ? CommandColors.textPrimary : color.opacity(0.8))
+                }
+            }
+            .overlay {
+                if isToday {
+                    RoundedRectangle(cornerRadius: 3)
+                        .stroke(color.opacity(0.6), lineWidth: 1)
+                }
+            }
+            .opacity(appeared ? 1 : 0)
+            .scaleEffect(appeared ? 1 : 0.5)
+    }
+
+    private var cellColor: Color {
+        if pressure <= 0 {
+            return CommandColors.surfaceElevated.opacity(0.5)
+        }
+        return color.opacity(pressure * 0.7)
     }
 }

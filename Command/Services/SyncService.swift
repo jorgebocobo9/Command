@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 import BackgroundTasks
 
-actor SyncService {
+@MainActor final class SyncService {
     private let classroomService: ClassroomService
     private static let bgTaskId = "com.jgbocobo.command.classroom-sync"
 
@@ -32,7 +32,10 @@ actor SyncService {
                 course.section = courseDTO.section
                 context.insert(course)
             }
-            _ = course // suppress unused variable warning
+            // Skip hidden courses — don't sync their assignments
+            if course.isHidden {
+                continue
+            }
 
             // Fetch coursework
             let courseWork = try await classroomService.fetchCourseWork(courseId: courseDTO.id)

@@ -1,9 +1,10 @@
 import Foundation
 import AuthenticationServices
+import UIKit
 
 actor ClassroomService {
     private let baseURL = "https://classroom.googleapis.com/v1"
-    private let clientId = "" // Set from Config/Secrets
+    private let clientId = "575659513623-p3r82e7r2s14ipkmq4r39b94guivi7e0.apps.googleusercontent.com"
     private let redirectURI = "com.jgbocobo.command:/oauth2callback"
 
     private let tokenKey = "google_access_token"
@@ -35,15 +36,22 @@ actor ClassroomService {
 
         guard let authURL = components.url else { throw ClassroomError.invalidURL }
 
-        // ASWebAuthenticationSession handles the browser flow
-        let callbackURL = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL, Error>) in
-            let session = ASWebAuthenticationSession(url: authURL, callbackURLScheme: "com.jgbocobo.command") { url, error in
-                if let error { continuation.resume(throwing: error) }
-                else if let url { continuation.resume(returning: url) }
-                else { continuation.resume(throwing: ClassroomError.authFailed) }
+        // ASWebAuthenticationSession must run on the main thread with a presentation context
+        let callbackURL: URL = try await withCheckedThrowingContinuation { continuation in
+            Task { @MainActor in
+                let contextProvider = AuthPresentationContext()
+                let session = ASWebAuthenticationSession(url: authURL, callbackURLScheme: "com.jgbocobo.command") { url, error in
+                    if let error { continuation.resume(throwing: error) }
+                    else if let url { continuation.resume(returning: url) }
+                    else { continuation.resume(throwing: ClassroomError.authFailed) }
+                }
+                session.presentationContextProvider = contextProvider
+                session.prefersEphemeralWebBrowserSession = false
+                // Keep strong references so they aren't deallocated during auth flow
+                contextProvider.retainedSession = session
+                AuthPresentationContext.active = contextProvider
+                session.start()
             }
-            session.prefersEphemeralWebBrowserSession = false
-            session.start()
         }
 
         // Extract auth code from callback
@@ -191,4 +199,21 @@ enum ClassroomError: Error {
     case noAuthCode
     case notAuthenticated
     case syncFailed
+}
+
+// Provides the window anchor for ASWebAuthenticationSession
+@MainActor
+final class AuthPresentationContext: NSObject, ASWebAuthenticationPresentationContextProviding {
+    static var active: AuthPresentationContext?
+    var retainedSession: ASWebAuthenticationSession?
+
+    nonisolated func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        MainActor.assumeIsolated {
+            guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                  let window = scene.windows.first else {
+                return ASPresentationAnchor()
+            }
+            return window
+        }
+    }
 }

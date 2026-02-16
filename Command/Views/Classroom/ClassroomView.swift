@@ -9,11 +9,33 @@ struct ClassroomView: View {
         allMissions.filter { $0.source == .googleClassroom }
     }
     @State private var viewModel = ClassroomViewModel()
+    @State private var showHidden = false
+
+    private var visibleCourses: [ClassroomCourse] {
+        showHidden ? courses : courses.filter { !$0.isHidden }
+    }
+
+    private var hiddenCount: Int {
+        courses.filter { $0.isHidden }.count
+    }
 
     var body: some View {
-        NavigationStack {
+        ZStack {
+            CommandColors.background.ignoresSafeArea()
+
             ScrollView {
                 VStack(spacing: 16) {
+                    // Header
+                    HStack {
+                        Text("CLASSROOM")
+                            .font(.system(size: 13, weight: .bold, design: .monospaced))
+                            .foregroundStyle(CommandColors.textPrimary)
+                            .tracking(3)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 4)
+
                     // Connection status
                     if !viewModel.isConnected {
                         connectCard
@@ -27,20 +49,38 @@ struct ClassroomView: View {
                             Task { await viewModel.sync(context: context) }
                         }
                     )
-                    .padding(.horizontal)
+                    .padding(.horizontal, 16)
+
+                    // Hidden courses toggle
+                    if hiddenCount > 0 {
+                        Button {
+                            withAnimation(CommandAnimations.spring) {
+                                showHidden.toggle()
+                            }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: showHidden ? "eye" : "eye.slash")
+                                    .font(.system(size: 12))
+                                Text(showHidden ? "Showing all courses" : "\(hiddenCount) hidden")
+                                    .font(CommandTypography.caption)
+                            }
+                            .foregroundStyle(CommandColors.textTertiary)
+                        }
+                        .buttonStyle(.plain)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .padding(.horizontal, 16)
+                    }
 
                     // Course list
-                    CourseListView(courses: courses, missions: classroomMissions)
-                        .padding(.horizontal)
+                    CourseListView(courses: visibleCourses, missions: classroomMissions, context: context)
+                        .padding(.horizontal, 16)
                 }
                 .padding(.bottom, 20)
             }
-            .background(CommandColors.background)
-            .navigationTitle("Classroom")
-            .toolbarColorScheme(.dark, for: .navigationBar)
-            .refreshable {
-                await viewModel.sync(context: context)
-            }
+            .scrollContentBackground(.hidden)
+        }
+        .refreshable {
+            await viewModel.sync(context: context)
         }
     }
 

@@ -7,6 +7,9 @@ final class MissionViewModel {
     var isDecomposing = false
     var decompositionError: String?
 
+    private let aiService: any AIServiceProtocol = OnDeviceAIService()
+    private let streakService = StreakService()
+
     func createMission(
         title: String,
         description: String,
@@ -23,6 +26,10 @@ final class MissionViewModel {
         mission.deadline = deadline
         context.insert(mission)
         try? context.save()
+
+        // Schedule aggression-based notifications
+        scheduleNotifications(for: mission)
+
         return mission
     }
 
@@ -30,16 +37,29 @@ final class MissionViewModel {
         mission.status = .completed
         mission.completedAt = Date()
         try? context.save()
+
+        // Cancel pending notifications for this mission
+        Task { await NotificationService.shared.cancelNotifications(for: mission.id.uuidString) }
+
+        // Record streak
+        streakService.recordCompletion(category: mission.category, context: context)
     }
 
     func abandonMission(_ mission: Mission, context: ModelContext) {
         mission.status = .abandoned
         try? context.save()
+
+        // Cancel pending notifications
+        Task { await NotificationService.shared.cancelNotifications(for: mission.id.uuidString) }
     }
 
     func deleteMission(_ mission: Mission, context: ModelContext) {
+        let missionId = mission.id.uuidString
         context.delete(mission)
         try? context.save()
+
+        // Cancel pending notifications
+        Task { await NotificationService.shared.cancelNotifications(for: missionId) }
     }
 
     func toggleStep(_ step: MissionStep, context: ModelContext) {
@@ -51,9 +71,16 @@ final class MissionViewModel {
             if allCompleted && !mission.steps.isEmpty {
                 mission.status = .completed
                 mission.completedAt = Date()
+
+                // Cancel notifications and record streak on auto-complete
+                Task { await NotificationService.shared.cancelNotifications(for: mission.id.uuidString) }
+                Task { await streakService.recordCompletion(category: mission.category, context: context) }
             } else if mission.status == .completed {
                 mission.status = .inProgress
                 mission.completedAt = nil
+
+                // Re-schedule notifications if mission uncompleted
+                scheduleNotifications(for: mission)
             }
         }
 
@@ -75,5 +102,81 @@ final class MissionViewModel {
             s.orderIndex = index
         }
         try? context.save()
+    }
+
+    // MARK: - AI Decomposition
+
+    func decomposeMission(_ mission: Mission, context: ModelContext) async {
+        isDecomposing = true
+        decompositionError = nil
+
+        do {
+            let result = try await aiService.decomposeMission(
+                title: mission.title,
+                description: mission.missionDescription
+            )
+
+            // Apply decomposition results
+            mission.cognitiveLoad = result.cognitiveLoad
+            mission.estimatedMinutes = result.estimatedMinutes
+
+            // Create steps from AI output
+            for (index, aiStep) in result.steps.enumerated() {
+                let step = MissionStep(title: aiStep.title, orderIndex: index)
+                step.estimatedMinutes = aiStep.estimatedMinutes
+                step.mission = mission
+                mission.steps.append(step)
+            }
+
+            // Create resources from search queries
+            for query in result.searchQueries {
+                let resource = Resource(
+                    title: query.query,
+                    urlString: searchURL(query: query.query, platform: query.platform),
+                    type: query.platform == .youtube ? .video : .article
+                )
+                resource.mission = mission
+                mission.resources.append(resource)
+            }
+
+            mission.status = .inProgress
+            try? context.save()
+        } catch {
+            decompositionError = error.localizedDescription
+        }
+
+        isDecomposing = false
+    }
+
+    // MARK: - Notifications
+
+    func scheduleNotifications(for mission: Mission) {
+        let notifications = AggressionScheduler.scheduleNotifications(for: mission)
+        Task {
+            // Cancel existing notifications for this mission first
+            await NotificationService.shared.cancelNotifications(for: mission.id.uuidString)
+
+            for notification in notifications {
+                await NotificationService.shared.scheduleNotification(
+                    id: notification.id,
+                    title: notification.title,
+                    body: notification.body,
+                    triggerDate: notification.fireDate,
+                    categoryIdentifier: notification.isUrgent ? "URGENT_REMINDER" : "MISSION_REMINDER",
+                    userInfo: ["missionId": mission.id.uuidString]
+                )
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func searchURL(query: String, platform: SearchPlatform) -> String {
+        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+        switch platform {
+        case .youtube: return "https://www.youtube.com/results?search_query=\(encoded)"
+        case .google: return "https://www.google.com/search?q=\(encoded)"
+        case .googleScholar: return "https://scholar.google.com/scholar?q=\(encoded)"
+        }
     }
 }

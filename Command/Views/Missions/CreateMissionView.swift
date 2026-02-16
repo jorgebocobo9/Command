@@ -204,6 +204,8 @@ struct CreateMissionView: View {
         }
     }
 
+    @State private var viewModel = MissionViewModel()
+
     private func createMission() {
         let mission = Mission(title: title, category: category)
         mission.missionDescription = description
@@ -212,6 +214,11 @@ struct CreateMissionView: View {
         mission.deadline = hasDeadline ? deadline : nil
         context.insert(mission)
         try? context.save()
+
+        // Schedule aggression-based notifications
+        viewModel.scheduleNotifications(for: mission)
+
+        Haptic.notification(.success)
         dismiss()
     }
 
@@ -219,13 +226,22 @@ struct CreateMissionView: View {
         guard !title.isEmpty else { return }
         isDecomposing = true
 
-        // AI decomposition will be triggered by MissionViewModel when services are available.
-        // For now, create mission immediately and the user can trigger AI later.
+        // Create mission first, then decompose with AI
+        let mission = Mission(title: title, category: category)
+        mission.missionDescription = description
+        mission.priority = priority
+        mission.aggressionLevel = aggressionLevel
+        mission.deadline = hasDeadline ? deadline : nil
+        context.insert(mission)
+        try? context.save()
+
         Task {
-            try? await Task.sleep(for: .seconds(0.5))
+            await viewModel.decomposeMission(mission, context: context)
             await MainActor.run {
                 isDecomposing = false
-                createMission()
+                // Schedule notifications after decomposition
+                viewModel.scheduleNotifications(for: mission)
+                dismiss()
             }
         }
     }

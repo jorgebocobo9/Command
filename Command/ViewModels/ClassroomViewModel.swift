@@ -9,27 +9,53 @@ final class ClassroomViewModel {
     var lastSynced: Date?
     var syncError: String?
 
+    private let classroomService: ClassroomService
+    private let syncService: SyncService
+
+    init() {
+        let service = ClassroomService()
+        self.classroomService = service
+        self.syncService = SyncService(classroomService: service)
+
+        // Check if already authenticated from a previous session
+        Task { @MainActor [service] in
+            let authed = await service.isAuthenticated
+            self.isConnected = authed
+        }
+    }
+
     func connect() async {
-        // ClassroomService.authenticate() will be wired by manager during integration
-        // For now, this is a placeholder
-        isConnected = true
+        do {
+            try await classroomService.authenticate()
+            isConnected = true
+        } catch {
+            syncError = "Failed to connect: \(error.localizedDescription)"
+            isConnected = false
+        }
     }
 
     func disconnect() {
+        Task { await classroomService.signOut() }
         isConnected = false
         lastSynced = nil
     }
 
     func sync(context: ModelContext) async {
         guard !isSyncing else { return }
+        guard isConnected else {
+            syncError = "Not connected to Google Classroom"
+            return
+        }
         isSyncing = true
         syncError = nil
 
-        // SyncService.syncClassroom() will be wired by manager during integration
-        // For now, simulate sync delay
-        try? await Task.sleep(for: .seconds(1))
+        do {
+            try await syncService.syncClassroom(context: context)
+            lastSynced = Date()
+        } catch {
+            syncError = "Sync failed: \(error.localizedDescription)"
+        }
 
-        lastSynced = Date()
         isSyncing = false
     }
 }

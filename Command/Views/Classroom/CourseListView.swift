@@ -4,29 +4,19 @@ import SwiftData
 struct CourseListView: View {
     let courses: [ClassroomCourse]
     let missions: [Mission]
+    let context: ModelContext
 
     var body: some View {
         if courses.isEmpty {
-            VStack(spacing: 12) {
-                Image(systemName: "graduationcap")
-                    .font(.system(size: 36))
-                    .foregroundStyle(CommandColors.textTertiary)
-
-                Text("No courses synced")
-                    .font(CommandTypography.body)
-                    .foregroundStyle(CommandColors.textSecondary)
-
-                Text("Connect Google Classroom to import your courses and assignments automatically.")
-                    .font(CommandTypography.caption)
-                    .foregroundStyle(CommandColors.textTertiary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
-            }
-            .padding(.vertical, 40)
+            EmptyStateView(
+                icon: "graduationcap",
+                title: "No courses synced",
+                subtitle: "Connect Google Classroom and sync to import your courses."
+            )
         } else {
             LazyVStack(spacing: 12) {
                 ForEach(courses, id: \.courseId) { course in
-                    CourseRow(course: course, missions: missionsForCourse(course))
+                    CourseRow(course: course, missions: missionsForCourse(course), context: context)
                 }
             }
         }
@@ -40,6 +30,7 @@ struct CourseListView: View {
 struct CourseRow: View {
     let course: ClassroomCourse
     let missions: [Mission]
+    let context: ModelContext
     @State private var expanded = false
 
     private var activeMissions: [Mission] {
@@ -59,7 +50,7 @@ struct CourseRow: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(course.name)
                             .font(CommandTypography.headline)
-                            .foregroundStyle(CommandColors.textPrimary)
+                            .foregroundStyle(course.isHidden ? CommandColors.textTertiary : CommandColors.textPrimary)
                             .lineLimit(1)
 
                         if let section = course.section {
@@ -109,6 +100,33 @@ struct CourseRow: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 6)
                     }
+
+                    // Hide/Show button
+                    Button {
+                        Haptic.selection()
+                        withAnimation(CommandAnimations.spring) {
+                            course.isHidden.toggle()
+                            // Remove missions from this course when hiding
+                            if course.isHidden {
+                                for mission in missions where mission.status != .completed {
+                                    let missionId = mission.id.uuidString
+                                    Task { await NotificationService.shared.cancelNotifications(for: missionId) }
+                                    context.delete(mission)
+                                }
+                            }
+                            try? context.save()
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: course.isHidden ? "eye" : "eye.slash")
+                                .font(.system(size: 11))
+                            Text(course.isHidden ? "Unhide Course" : "Hide Course")
+                                .font(CommandTypography.caption)
+                        }
+                        .foregroundStyle(CommandColors.textTertiary)
+                        .padding(.vertical, 8)
+                    }
+                    .buttonStyle(.plain)
                 }
                 .padding(.bottom, 8)
                 .transition(.opacity.combined(with: .move(edge: .top)))
@@ -116,5 +134,6 @@ struct CourseRow: View {
         }
         .background(CommandColors.surface)
         .clipShape(RoundedRectangle(cornerRadius: 10))
+        .opacity(course.isHidden ? 0.5 : 1)
     }
 }

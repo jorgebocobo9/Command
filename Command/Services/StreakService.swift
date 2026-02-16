@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 
-actor StreakService {
+@MainActor final class StreakService {
     func recordCompletion(category: MissionCategory, context: ModelContext) {
         let streakCategory: StreakCategory = switch category {
         case .school: .school

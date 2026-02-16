@@ -5,9 +5,12 @@ struct FocusSessionView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel = FocusViewModel()
+    @State private var microStart: String?
 
     let mission: Mission
     var focusMinutes: Int = 25
+
+    private let microStartGenerator = MicroStartGenerator(aiService: OnDeviceAIService())
 
     var body: some View {
         ZStack {
@@ -36,6 +39,9 @@ struct FocusSessionView: View {
         .onAppear {
             viewModel.configure(mission: mission, minutes: focusMinutes)
         }
+        .task {
+            microStart = await microStartGenerator.generate(for: mission.title)
+        }
     }
 
     // MARK: - Ready
@@ -60,6 +66,20 @@ struct FocusSessionView: View {
                     .foregroundStyle(CommandColors.textSecondary)
             }
 
+            if let microStart {
+                VStack(spacing: 4) {
+                    Text("MICRO-START")
+                        .font(CommandTypography.caption)
+                        .foregroundStyle(CommandColors.textTertiary)
+                        .tracking(1)
+                    Text(microStart)
+                        .font(CommandTypography.body)
+                        .foregroundStyle(CommandColors.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+                }
+            }
+
             FocusTimerView(
                 totalSeconds: viewModel.totalSeconds,
                 remainingSeconds: viewModel.remainingSeconds,
@@ -72,6 +92,7 @@ struct FocusSessionView: View {
             Spacer()
 
             Button {
+                Haptic.impact(.medium)
                 viewModel.start(context: context)
             } label: {
                 Text("Start Focus")
@@ -198,13 +219,26 @@ struct FocusSessionView: View {
 
     // MARK: - Completed
 
+    @State private var showCheckmark = false
+
     private var completedView: some View {
         VStack(spacing: 24) {
             Spacer()
 
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(CommandColors.success)
+            ZStack {
+                Circle()
+                    .fill(CommandColors.success.opacity(0.1))
+                    .frame(width: 120, height: 120)
+                    .scaleEffect(showCheckmark ? 1 : 0.5)
+                    .opacity(showCheckmark ? 1 : 0)
+
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 64))
+                    .foregroundStyle(CommandColors.success)
+                    .scaleEffect(showCheckmark ? 1 : 0.3)
+                    .opacity(showCheckmark ? 1 : 0)
+            }
+            .glow(CommandColors.success, radius: 20, intensity: showCheckmark ? 0.4 : 0)
 
             Text("Session Complete")
                 .font(CommandTypography.title)
@@ -245,6 +279,12 @@ struct FocusSessionView: View {
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 40)
+        }
+        .onAppear {
+            Haptic.notification(.success)
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+                showCheckmark = true
+            }
         }
     }
 }

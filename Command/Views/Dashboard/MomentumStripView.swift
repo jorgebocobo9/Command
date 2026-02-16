@@ -2,7 +2,7 @@ import SwiftUI
 
 struct MomentumStripView: View {
     let streaks: [Streak]
-    @State private var expanded = false
+    @State private var expanded = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
