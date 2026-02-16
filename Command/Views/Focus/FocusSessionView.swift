@@ -50,10 +50,7 @@ struct FocusSessionView: View {
         VStack(spacing: 24) {
             Spacer()
 
-            Text("FOCUS SESSION")
-                .font(CommandTypography.caption)
-                .foregroundStyle(CommandColors.textTertiary)
-                .tracking(2)
+            SectionHeader("FOCUS SESSION")
 
             Text(mission.title)
                 .font(CommandTypography.title)
@@ -68,10 +65,7 @@ struct FocusSessionView: View {
 
             if let microStart {
                 VStack(spacing: 4) {
-                    Text("MICRO-START")
-                        .font(CommandTypography.caption)
-                        .foregroundStyle(CommandColors.textTertiary)
-                        .tracking(1)
+                    SectionHeader("MICRO-START")
                     Text(microStart)
                         .font(CommandTypography.body)
                         .foregroundStyle(CommandColors.textSecondary)
@@ -143,10 +137,7 @@ struct FocusSessionView: View {
             // Current step
             if let nextStep = mission.steps.sorted(by: { $0.orderIndex < $1.orderIndex }).first(where: { !$0.isCompleted }) {
                 VStack(spacing: 4) {
-                    Text("CURRENT STEP")
-                        .font(CommandTypography.caption)
-                        .foregroundStyle(CommandColors.textTertiary)
-                        .tracking(1)
+                    SectionHeader("CURRENT STEP")
 
                     Text(nextStep.title)
                         .font(CommandTypography.body)

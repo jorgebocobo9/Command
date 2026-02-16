@@ -20,10 +20,7 @@ struct CreateMissionView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     // Title
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("TITLE")
-                            .font(CommandTypography.caption)
-                            .foregroundStyle(CommandColors.textTertiary)
-                            .tracking(1.5)
+                        SectionHeader("TITLE")
 
                         TextField("Mission title", text: $title)
                             .font(CommandTypography.headline)
@@ -35,10 +32,7 @@ struct CreateMissionView: View {
 
                     // Description
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("DESCRIPTION")
-                            .font(CommandTypography.caption)
-                            .foregroundStyle(CommandColors.textTertiary)
-                            .tracking(1.5)
+                        SectionHeader("DESCRIPTION")
 
                         TextField("Details (optional)", text: $description, axis: .vertical)
                             .font(CommandTypography.body)
@@ -51,10 +45,7 @@ struct CreateMissionView: View {
 
                     // Category
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("CATEGORY")
-                            .font(CommandTypography.caption)
-                            .foregroundStyle(CommandColors.textTertiary)
-                            .tracking(1.5)
+                        SectionHeader("CATEGORY")
 
                         HStack(spacing: 8) {
                             ForEach(MissionCategory.allCases, id: \.self) { cat in
@@ -80,10 +71,7 @@ struct CreateMissionView: View {
 
                     // Priority
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("PRIORITY")
-                            .font(CommandTypography.caption)
-                            .foregroundStyle(CommandColors.textTertiary)
-                            .tracking(1.5)
+                        SectionHeader("PRIORITY")
 
                         HStack(spacing: 8) {
                             ForEach(MissionPriority.allCases, id: \.self) { p in
@@ -105,10 +93,7 @@ struct CreateMissionView: View {
 
                     // Aggression
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("AGGRESSION")
-                            .font(CommandTypography.caption)
-                            .foregroundStyle(CommandColors.textTertiary)
-                            .tracking(1.5)
+                        SectionHeader("AGGRESSION")
 
                         AggressionSlider(level: $aggressionLevel)
                     }
@@ -116,10 +101,7 @@ struct CreateMissionView: View {
                     // Deadline
                     VStack(alignment: .leading, spacing: 6) {
                         Toggle(isOn: $hasDeadline) {
-                            Text("DEADLINE")
-                                .font(CommandTypography.caption)
-                                .foregroundStyle(CommandColors.textTertiary)
-                                .tracking(1.5)
+                            SectionHeader("DEADLINE")
                         }
                         .tint(CommandColors.school)
 

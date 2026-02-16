@@ -9,8 +9,6 @@ struct DashboardView: View {
     @State private var selectedMission: Mission?
     @State private var showCreateMission = false
 
-    private let energyService = EnergyService()
-
     private var hiddenCourseIds: Set<String> {
         Set(courses.filter { $0.isHidden }.map { $0.courseId })
     }
@@ -23,18 +21,31 @@ struct DashboardView: View {
         }
     }
 
-    private var todayMissions: [Mission] {
-        let calendar = Calendar.current
-        let endOfDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date()))!
-        let todayRaw = activeMissions.filter { mission in
-            guard let deadline = mission.deadline else { return false }
-            return deadline <= endOfDay
-        }
-        return energyService.suggestMissionOrder(todayRaw, context: context)
+    private var overdueMissions: [Mission] {
+        activeMissions.filter { $0.isOverdue }
+            .sorted { ($0.deadline ?? .distantFuture) < ($1.deadline ?? .distantFuture) }
     }
 
-    private var currentEnergy: Double {
-        energyService.currentEnergyLevel(context: context)
+    private var dueTodayMissions: [Mission] {
+        let calendar = Calendar.current
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date()))!
+        return activeMissions.filter { mission in
+            guard let deadline = mission.deadline else { return false }
+            return !mission.isOverdue && deadline <= endOfDay
+        }.sorted { ($0.deadline ?? .distantFuture) < ($1.deadline ?? .distantFuture) }
+    }
+
+    private var upcomingMissions: [Mission] {
+        let calendar = Calendar.current
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date()))!
+        return activeMissions.filter { mission in
+            guard let deadline = mission.deadline else { return true }
+            return deadline > endOfDay
+        }.sorted { ($0.deadline ?? .distantFuture) < ($1.deadline ?? .distantFuture) }
+    }
+
+    private var currentStreak: Int {
+        streaks.first(where: { $0.category == .overall })?.currentCount ?? 0
     }
 
     private var greeting: String {
@@ -52,48 +63,100 @@ struct DashboardView: View {
             CommandColors.background.ignoresSafeArea()
 
             ScrollView {
-                VStack(spacing: 16) {
-                    // Header with greeting
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(greeting)
-                            .font(CommandTypography.largeTitle)
-                            .foregroundStyle(CommandColors.textPrimary)
+                VStack(alignment: .leading, spacing: 20) {
+                    // Header
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(greeting)
+                                .font(CommandTypography.largeTitle)
+                                .foregroundStyle(CommandColors.textPrimary)
 
-                        Text(Date(), format: .dateTime.weekday(.wide).month().day())
-                            .font(CommandTypography.caption)
-                            .foregroundStyle(CommandColors.textTertiary)
+                            Text(Date(), format: .dateTime.weekday(.wide).month().day())
+                                .font(CommandTypography.caption)
+                                .foregroundStyle(CommandColors.textTertiary)
+                        }
+
+                        Spacer()
+
+                        if currentStreak > 0 {
+                            HStack(spacing: 4) {
+                                Image(systemName: "flame.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(CommandColors.warning)
+                                Text("\(currentStreak)")
+                                    .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(CommandColors.textPrimary)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(CommandColors.warning.opacity(0.1))
+                            .clipShape(Capsule())
+                        }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
 
-                    // Pressure Radar
-                    PressureRadarView(
-                        missions: activeMissions
-                    ) { mission in
-                        selectedMission = mission
+                    // Quick stats
+                    HStack(spacing: 8) {
+                        quickStat(
+                            count: overdueMissions.count,
+                            label: "Overdue",
+                            color: CommandColors.urgent
+                        )
+                        quickStat(
+                            count: dueTodayMissions.count,
+                            label: "Today",
+                            color: CommandColors.warning
+                        )
+                        quickStat(
+                            count: activeMissions.count,
+                            label: "Active",
+                            color: CommandColors.school
+                        )
                     }
                     .padding(.horizontal, 16)
 
-                    // Today's Missions
-                    TodayMissionsView(
-                        missions: todayMissions,
-                        energyLevel: currentEnergy,
-                        onCreateTap: { showCreateMission = true }
-                    ) { mission in
-                        selectedMission = mission
-                    }
-                    .padding(.horizontal, 16)
+                    // Mission sections
+                    if activeMissions.isEmpty {
+                        EmptyStateView(
+                            icon: "checkmark.seal",
+                            title: "No missions yet",
+                            subtitle: "Create your first mission to get started.",
+                            actionLabel: "New Mission",
+                            action: { showCreateMission = true }
+                        )
+                        .padding(.top, 20)
+                    } else {
+                        if !overdueMissions.isEmpty {
+                            missionSection("OVERDUE", missions: overdueMissions, color: CommandColors.urgent)
+                        }
 
-                    // Momentum Strip
-                    MomentumStripView(streaks: streaks)
-                        .padding(.horizontal, 16)
+                        if !dueTodayMissions.isEmpty {
+                            missionSection("DUE TODAY", missions: dueTodayMissions, color: CommandColors.warning)
+                        }
+
+                        if !upcomingMissions.isEmpty {
+                            missionSection("UPCOMING", missions: upcomingMissions, color: CommandColors.textTertiary)
+                        }
+
+                        if overdueMissions.isEmpty && dueTodayMissions.isEmpty && !upcomingMissions.isEmpty {
+                            HStack(spacing: 8) {
+                                Image(systemName: "checkmark.circle")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(CommandColors.success)
+                                Text("Nothing due today")
+                                    .font(CommandTypography.caption)
+                                    .foregroundStyle(CommandColors.textSecondary)
+                            }
+                            .padding(.horizontal, 16)
+                        }
+                    }
                 }
-                .padding(.bottom, 80)
+                .padding(.bottom, 100)
             }
             .scrollContentBackground(.hidden)
 
-            // Floating Action Button
+            // FAB
             Button {
                 Haptic.impact(.medium)
                 showCreateMission = true
@@ -107,7 +170,6 @@ struct DashboardView: View {
                     .overlay(
                         Circle().stroke(CommandColors.school.opacity(0.4), lineWidth: 1)
                     )
-                    .glow(CommandColors.school, radius: 10, intensity: 0.3)
             }
             .buttonStyle(.plain)
             .padding(.trailing, 20)
@@ -118,6 +180,49 @@ struct DashboardView: View {
         }
         .sheet(isPresented: $showCreateMission) {
             CreateMissionView()
+        }
+    }
+
+    private func quickStat(count: Int, label: String, color: Color) -> some View {
+        VStack(spacing: 2) {
+            Text("\(count)")
+                .font(.system(size: 24, weight: .bold, design: .monospaced))
+                .foregroundStyle(count > 0 ? color : CommandColors.textTertiary)
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(CommandColors.textTertiary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(count > 0 ? color.opacity(0.06) : CommandColors.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(count > 0 ? color.opacity(0.2) : CommandColors.surfaceBorder, lineWidth: 0.5)
+        )
+    }
+
+    private func missionSection(_ title: String, missions: [Mission], color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                if color == CommandColors.urgent {
+                    Circle()
+                        .fill(color)
+                        .frame(width: 6, height: 6)
+                }
+                Text(title)
+                    .font(CommandTypography.caption)
+                    .foregroundStyle(color)
+                    .tracking(1.5)
+            }
+            .padding(.horizontal, 16)
+
+            ForEach(missions, id: \.id) { mission in
+                MissionCard(mission: mission) {
+                    selectedMission = mission
+                }
+                .padding(.horizontal, 16)
+            }
         }
     }
 }

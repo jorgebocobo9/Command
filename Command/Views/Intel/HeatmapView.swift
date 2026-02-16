@@ -10,10 +10,7 @@ struct HeatmapView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("PRODUCTIVITY HEATMAP")
-                .font(CommandTypography.caption)
-                .foregroundStyle(CommandColors.textTertiary)
-                .tracking(1.5)
+            SectionHeader("PRODUCTIVITY HEATMAP")
 
             ScrollView(.horizontal, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: spacing) {
@@ -68,9 +65,7 @@ struct HeatmapView: View {
                     .foregroundStyle(CommandColors.textTertiary)
             }
         }
-        .padding(12)
-        .background(CommandColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .commandCard()
     }
 
     private func profileValue(hour: Int, day: Int) -> Double {

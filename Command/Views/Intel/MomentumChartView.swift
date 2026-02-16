@@ -5,10 +5,7 @@ struct MomentumChartView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("MOMENTUM WAVES")
-                .font(CommandTypography.caption)
-                .foregroundStyle(CommandColors.textTertiary)
-                .tracking(1.5)
+            SectionHeader("MOMENTUM WAVES")
 
             if streaks.isEmpty {
                 Text("Complete tasks to build momentum")
@@ -45,9 +42,7 @@ struct MomentumChartView: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        .padding(12)
-        .background(CommandColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .commandCard()
     }
 
     private func streakColor(_ streak: Streak) -> Color {

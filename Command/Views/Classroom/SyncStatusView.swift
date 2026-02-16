@@ -49,13 +49,7 @@ struct SyncStatusView: View {
             .buttonStyle(.plain)
             .disabled(isSyncing)
         }
-        .padding(12)
-        .background(CommandColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(CommandColors.surfaceBorder, lineWidth: 0.5)
-        )
+        .commandCard()
     }
 
     private var statusColor: Color {

@@ -9,10 +9,7 @@ struct TaskDNAChartView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("TASK DNA")
-                .font(CommandTypography.caption)
-                .foregroundStyle(CommandColors.textTertiary)
-                .tracking(1.5)
+            SectionHeader("TASK DNA")
 
             Text("Estimated vs Actual Time")
                 .font(CommandTypography.caption)
@@ -43,9 +40,7 @@ struct TaskDNAChartView: View {
                 }
             }
         }
-        .padding(12)
-        .background(CommandColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .commandCard()
     }
 
     private var overallAccuracy: Double? {

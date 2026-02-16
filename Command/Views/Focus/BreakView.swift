@@ -24,10 +24,7 @@ struct BreakView: View {
         VStack(spacing: 32) {
             Spacer()
 
-            Text("BREAK TIME")
-                .font(CommandTypography.caption)
-                .foregroundStyle(CommandColors.textTertiary)
-                .tracking(2)
+            SectionHeader("BREAK TIME")
 
             Text(formattedTime)
                 .font(.system(size: 56, weight: .ultraLight, design: .monospaced))
