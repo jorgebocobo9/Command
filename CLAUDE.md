@@ -202,7 +202,34 @@ Owner: All Views, ViewModels, Theme, Widgets, Live Activities. UI and presentati
 28. Verify all views compile, update CLAUDE.md
 
 ### Progress
-- [ ] (update as you go)
+- [x] Create Theme system (commit: 1b112ad)
+- [x] Create GlowEffect.swift (commit: 1b112ad)
+- [x] Create AggressionBadge.swift (commit: 1b112ad)
+- [x] Create MissionCard.swift (commit: 1b112ad)
+- [x] Create AnimatedCountdown.swift (commit: 1b112ad)
+- [x] Create PressureRadarView.swift (commit: 65bbda1)
+- [x] Create TodayMissionsView.swift (commit: 65bbda1)
+- [x] Create MomentumStripView.swift (commit: 65bbda1)
+- [x] Create DashboardViewModel.swift + DashboardView.swift (commit: 65bbda1)
+- [x] Create MissionListView.swift (commit: b095f9a)
+- [x] Create CreateMissionView.swift (commit: b095f9a)
+- [x] Create MissionDetailView.swift (commit: b095f9a)
+- [x] Create MissionStepRow.swift (commit: b095f9a)
+- [x] Create MissionViewModel.swift (commit: b095f9a)
+- [x] Create FocusTimerView.swift (commit: 3293f83)
+- [x] Create BreakView.swift (commit: 3293f83)
+- [x] Create FocusSessionView.swift + FocusViewModel.swift (commit: 3293f83)
+- [x] Create ClassroomView.swift + CourseListView.swift + SyncStatusView.swift (commit: 3293f83)
+- [x] Create ClassroomViewModel.swift (commit: 3293f83)
+- [x] Create IntelView.swift (commit: 3293f83)
+- [x] Create HeatmapView.swift (commit: 3293f83)
+- [x] Create MomentumChartView.swift + TaskDNAChartView.swift (commit: 3293f83)
+- [x] Create IntelViewModel.swift (commit: 3293f83)
+- [x] Create OnboardingView.swift (commit: 1108e76)
+- [x] Create UrgentBannerView.swift + NuclearInterstitialView.swift (commit: 1108e76)
+- [x] Replace CommandWidgetBundle.swift + create Small/Medium/Large widgets (commit: 1108e76)
+- [x] Create FocusLiveActivity.swift + DeadlineLiveActivity.swift (commit: 1108e76)
+- [ ] Verify all views compile
 
 ### Notes
 - See implementation plan for full code for each component

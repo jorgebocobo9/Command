@@ -20,8 +20,11 @@ final class IntelViewModel {
         streaks = (try? context.fetch(streakDescriptor)) ?? []
 
         // Completed missions
+        let completed = MissionStatus.completed
         let missionDescriptor = FetchDescriptor<Mission>(
-            predicate: #Predicate { $0.status == .completed }
+            predicate: #Predicate { mission in
+                mission.status == completed
+            }
         )
         completedMissions = (try? context.fetch(missionDescriptor)) ?? []
         totalMissionsCompleted = completedMissions.count

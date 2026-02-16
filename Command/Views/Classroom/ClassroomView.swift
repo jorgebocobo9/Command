@@ -4,7 +4,10 @@ import SwiftData
 struct ClassroomView: View {
     @Environment(\.modelContext) private var context
     @Query private var courses: [ClassroomCourse]
-    @Query(filter: #Predicate<Mission> { $0.source == .googleClassroom }) private var classroomMissions: [Mission]
+    @Query private var allMissions: [Mission]
+    private var classroomMissions: [Mission] {
+        allMissions.filter { $0.source == .googleClassroom }
+    }
     @State private var viewModel = ClassroomViewModel()
 
     var body: some View {

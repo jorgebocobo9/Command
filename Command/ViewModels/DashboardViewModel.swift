@@ -14,8 +14,12 @@ final class DashboardViewModel {
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date()))!
 
         // All non-completed missions
+        let completed = MissionStatus.completed
+        let abandoned = MissionStatus.abandoned
         let allDescriptor = FetchDescriptor<Mission>(
-            predicate: #Predicate { $0.status != .completed && $0.status != .abandoned }
+            predicate: #Predicate { mission in
+                mission.status != completed && mission.status != abandoned
+            }
         )
         allActiveMissions = (try? context.fetch(allDescriptor)) ?? []
 
