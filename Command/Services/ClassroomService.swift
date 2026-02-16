@@ -104,6 +104,11 @@ actor ClassroomService {
         return response.courseWork ?? []
     }
 
+    func fetchCourseWorkDetail(courseId: String, courseWorkId: String) async throws -> CourseWorkDTO {
+        let data = try await authenticatedGet("\(baseURL)/courses/\(courseId)/courseWork/\(courseWorkId)")
+        return try JSONDecoder().decode(CourseWorkDTO.self, from: data)
+    }
+
     func fetchSubmissions(courseId: String, courseWorkId: String) async throws -> [SubmissionDTO] {
         let data = try await authenticatedGet("\(baseURL)/courses/\(courseId)/courseWork/\(courseWorkId)/studentSubmissions?userId=me")
         let response = try JSONDecoder().decode(SubmissionsResponse.self, from: data)
@@ -173,6 +178,46 @@ struct CourseWorkDTO: Codable {
     let dueTime: DueTime?
     let maxPoints: Double?
     let workType: String?
+    let materials: [CourseMaterial]?
+}
+
+struct CourseMaterial: Codable {
+    let driveFile: DriveFileWrapper?
+    let youtubeVideo: YouTubeVideo?
+    let link: MaterialLink?
+    let form: MaterialForm?
+}
+
+struct DriveFileWrapper: Codable {
+    let driveFile: DriveFile?
+    let shareMode: String?
+}
+
+struct DriveFile: Codable {
+    let id: String?
+    let title: String?
+    let alternateLink: String?
+    let thumbnailUrl: String?
+}
+
+struct YouTubeVideo: Codable {
+    let id: String?
+    let title: String?
+    let alternateLink: String?
+    let thumbnailUrl: String?
+}
+
+struct MaterialLink: Codable {
+    let url: String?
+    let title: String?
+    let thumbnailUrl: String?
+}
+
+struct MaterialForm: Codable {
+    let formUrl: String?
+    let title: String?
+    let responseUrl: String?
+    let thumbnailUrl: String?
 }
 
 struct DueDate: Codable {

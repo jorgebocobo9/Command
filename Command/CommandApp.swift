@@ -140,8 +140,18 @@ struct ContentView: View {
 
 struct FocusLauncherView: View {
     @Query private var allMissions: [Mission]
+    @Query private var courses: [ClassroomCourse]
+
+    private var hiddenCourseIds: Set<String> {
+        Set(courses.filter { $0.isHidden }.map { $0.courseId })
+    }
+
     private var activeMissions: [Mission] {
-        allMissions.filter { $0.status != .completed && $0.status != .abandoned }
+        allMissions.filter { mission in
+            if mission.status == .completed || mission.status == .abandoned { return false }
+            if let courseId = mission.classroomCourseId, hiddenCourseIds.contains(courseId) { return false }
+            return true
+        }
     }
 
     @State private var selectedMission: Mission?

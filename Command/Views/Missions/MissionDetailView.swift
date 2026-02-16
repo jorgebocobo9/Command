@@ -5,6 +5,9 @@ struct MissionDetailView: View {
     @Bindable var mission: Mission
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @State private var newStepTitle = ""
+    @State private var showAddStep = false
+    @State private var viewModel = MissionViewModel()
 
     var body: some View {
         NavigationStack {
@@ -31,6 +34,56 @@ struct MissionDetailView: View {
 
                     // Metadata
                     metadataSection
+
+                    // Mark as Done
+                    if mission.status != .completed {
+                        Button {
+                            Haptic.notification(.success)
+                            withAnimation(CommandAnimations.spring) {
+                                mission.status = .completed
+                                mission.completedAt = Date()
+                                Task { await NotificationService.shared.cancelNotifications(for: mission.id.uuidString) }
+                                try? context.save()
+                            }
+                            dismiss()
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 18))
+                                Text("Mark as Done")
+                                    .font(CommandTypography.headline)
+                            }
+                            .foregroundStyle(CommandColors.textPrimary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(CommandColors.success.opacity(0.2))
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(CommandColors.success.opacity(0.4), lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        HStack(spacing: 8) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 18))
+                                .foregroundStyle(CommandColors.success)
+                            Text("Completed")
+                                .font(CommandTypography.headline)
+                                .foregroundStyle(CommandColors.success)
+                            if let completedAt = mission.completedAt {
+                                Spacer()
+                                Text(completedAt, format: .dateTime.month().day())
+                                    .font(CommandTypography.caption)
+                                    .foregroundStyle(CommandColors.textTertiary)
+                            }
+                        }
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(CommandColors.success.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
                 }
                 .padding()
             }
@@ -169,9 +222,18 @@ struct MissionDetailView: View {
 
     // MARK: - Steps
 
+    private var sortedSteps: [MissionStep] {
+        mission.steps.sorted(by: { $0.orderIndex < $1.orderIndex })
+    }
+
+    private var completedCount: Int {
+        mission.steps.filter(\.isCompleted).count
+    }
+
     private var stepsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
+        VStack(alignment: .leading, spacing: 0) {
+            // Section header
+            HStack(alignment: .center) {
                 Text("STEPS")
                     .font(CommandTypography.caption)
                     .foregroundStyle(CommandColors.textTertiary)
@@ -180,86 +242,264 @@ struct MissionDetailView: View {
                 Spacer()
 
                 if !mission.steps.isEmpty {
-                    Text("\(mission.steps.filter(\.isCompleted).count)/\(mission.steps.count)")
-                        .font(CommandTypography.caption)
-                        .foregroundStyle(CommandColors.textSecondary)
+                    Text("\(completedCount)/\(mission.steps.count)")
+                        .font(.system(size: 13, weight: .bold, design: .monospaced))
+                        .foregroundStyle(completedCount == mission.steps.count && !mission.steps.isEmpty
+                            ? CommandColors.success
+                            : CommandColors.textSecondary)
                 }
             }
+            .padding(.bottom, 10)
 
-            if mission.steps.isEmpty {
-                Text("No steps yet. Create the mission to auto-decompose with AI.")
-                    .font(CommandTypography.body)
-                    .foregroundStyle(CommandColors.textTertiary)
-                    .padding(.vertical, 12)
-            } else {
-                ForEach(mission.steps.sorted(by: { $0.orderIndex < $1.orderIndex })) { step in
-                    MissionStepRow(step: step, accentColor: CommandColors.categoryColor(mission.category))
-                }
-            }
+            // Steps container
+            VStack(spacing: 0) {
+                if mission.steps.isEmpty && !showAddStep {
+                    // Empty state inside card
+                    VStack(spacing: 8) {
+                        Image(systemName: "list.bullet.rectangle")
+                            .font(.system(size: 24))
+                            .foregroundStyle(CommandColors.textTertiary.opacity(0.5))
+                        Text("No steps yet")
+                            .font(CommandTypography.body)
+                            .foregroundStyle(CommandColors.textTertiary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 20)
+                } else {
+                    ForEach(Array(sortedSteps.enumerated()), id: \.element.id) { index, step in
+                        MissionStepRow(
+                            step: step,
+                            index: index,
+                            accentColor: CommandColors.categoryColor(mission.category)
+                        )
 
-            // Step progress bar
-            if !mission.steps.isEmpty {
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(CommandColors.surfaceBorder)
-                            .frame(height: 3)
-
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(CommandColors.categoryColor(mission.category))
-                            .frame(width: geo.size.width * mission.stepProgress, height: 3)
-                            .glow(CommandColors.categoryColor(mission.category), radius: 4, intensity: 0.5)
+                        // Divider between steps
+                        if index < sortedSteps.count - 1 {
+                            Divider()
+                                .background(CommandColors.surfaceBorder.opacity(0.5))
+                                .padding(.leading, 50)
+                        }
                     }
                 }
-                .frame(height: 3)
-                .padding(.top, 4)
+
+                // Progress bar at bottom of card
+                if !mission.steps.isEmpty {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Rectangle()
+                                .fill(CommandColors.surfaceBorder.opacity(0.3))
+
+                            Rectangle()
+                                .fill(CommandColors.categoryColor(mission.category))
+                                .frame(width: geo.size.width * mission.stepProgress)
+                        }
+                    }
+                    .frame(height: 3)
+                }
+            }
+            .background(CommandColors.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(CommandColors.surfaceBorder, lineWidth: 0.5)
+            )
+
+            // Action bar below card
+            HStack(spacing: 10) {
+                // AI Decompose
+                if mission.steps.isEmpty {
+                    Button {
+                        Task { await viewModel.decomposeMission(mission, context: context) }
+                    } label: {
+                        HStack(spacing: 5) {
+                            if viewModel.isDecomposing {
+                                ProgressView()
+                                    .tint(CommandColors.categoryColor(mission.category))
+                                    .scaleEffect(0.65)
+                            } else {
+                                Image(systemName: "brain")
+                                    .font(.system(size: 11))
+                            }
+                            Text(viewModel.isDecomposing ? "Generating..." : "AI Steps")
+                                .font(.system(size: 12, weight: .semibold))
+                        }
+                        .foregroundStyle(CommandColors.categoryColor(mission.category))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 7)
+                        .background(CommandColors.categoryColor(mission.category).opacity(0.12))
+                        .clipShape(Capsule())
+                        .overlay(
+                            Capsule().stroke(CommandColors.categoryColor(mission.category).opacity(0.25), lineWidth: 0.5)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(viewModel.isDecomposing)
+                }
+
+                // Add step toggle
+                Button {
+                    withAnimation(CommandAnimations.springQuick) { showAddStep.toggle() }
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: showAddStep ? "xmark" : "plus")
+                            .font(.system(size: 10, weight: .bold))
+                        Text(showAddStep ? "Cancel" : "Add Step")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundStyle(CommandColors.textSecondary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(CommandColors.surface)
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule().stroke(CommandColors.surfaceBorder, lineWidth: 0.5)
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+            }
+            .padding(.top, 10)
+
+            // Inline add step field
+            if showAddStep {
+                HStack(spacing: 8) {
+                    Image(systemName: "plus.circle")
+                        .font(.system(size: 16))
+                        .foregroundStyle(CommandColors.categoryColor(mission.category))
+
+                    TextField("What's the next step?", text: $newStepTitle)
+                        .font(CommandTypography.body)
+                        .foregroundStyle(CommandColors.textPrimary)
+                        .onSubmit { addStep() }
+
+                    if !newStepTitle.isEmpty {
+                        Button { addStep() } label: {
+                            Text("Add")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(CommandColors.categoryColor(mission.category))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(CommandColors.categoryColor(mission.category).opacity(0.15))
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(12)
+                .background(CommandColors.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(CommandColors.categoryColor(mission.category).opacity(0.3), lineWidth: 1)
+                )
+                .padding(.top, 8)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
     }
 
     // MARK: - Resources
 
-    private var resourcesSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("RESOURCES")
-                .font(CommandTypography.caption)
-                .foregroundStyle(CommandColors.textTertiary)
-                .tracking(1.5)
-
-            ForEach(mission.resources) { resource in
-                if let url = resource.url {
-                    Link(destination: url) {
-                        HStack(spacing: 8) {
-                            Image(systemName: resourceIcon(resource.type))
-                                .font(.system(size: 14))
-                                .foregroundStyle(CommandColors.school)
-
-                            Text(resource.title)
-                                .font(CommandTypography.body)
-                                .foregroundStyle(CommandColors.textPrimary)
-                                .lineLimit(1)
-
-                            Spacer()
-
-                            Image(systemName: "arrow.up.right")
-                                .font(.system(size: 10))
-                                .foregroundStyle(CommandColors.textTertiary)
-                        }
-                        .padding(10)
-                        .background(CommandColors.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                    }
-                }
-            }
+    private func resourceIconName(_ type: ResourceType) -> String {
+        switch type {
+        case .video: return "play.rectangle.fill"
+        case .article: return "doc.text.fill"
+        case .documentation: return "book.fill"
+        case .tool: return "wrench.and.screwdriver.fill"
         }
     }
 
-    private func resourceIcon(_ type: ResourceType) -> String {
+    private func resourceColor(_ type: ResourceType) -> Color {
         switch type {
-        case .video: return "play.rectangle"
-        case .article: return "doc.text"
-        case .documentation: return "book"
-        case .tool: return "wrench"
+        case .video: return Color(hex: "FF4444")   // Red for video
+        case .article: return CommandColors.school  // Cyan for articles
+        case .documentation: return CommandColors.warning // Amber for docs
+        case .tool: return CommandColors.success    // Green for tools
+        }
+    }
+
+    private func resourceTypeLabel(_ type: ResourceType) -> String {
+        switch type {
+        case .video: return "VIDEO"
+        case .article: return "ARTICLE"
+        case .documentation: return "DOCS"
+        case .tool: return "TOOL"
+        }
+    }
+
+    private var resourcesSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Section header
+            HStack {
+                Text("RESOURCES")
+                    .font(CommandTypography.caption)
+                    .foregroundStyle(CommandColors.textTertiary)
+                    .tracking(1.5)
+
+                Spacer()
+
+                Text("\(mission.resources.count)")
+                    .font(.system(size: 13, weight: .bold, design: .monospaced))
+                    .foregroundStyle(CommandColors.textSecondary)
+            }
+            .padding(.bottom, 10)
+
+            // Resources container
+            VStack(spacing: 0) {
+                ForEach(Array(mission.resources.enumerated()), id: \.element.id) { index, resource in
+                    if let url = resource.url {
+                        Link(destination: url) {
+                            HStack(spacing: 10) {
+                                // Type icon with colored background
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(resourceColor(resource.type).opacity(0.15))
+                                        .frame(width: 32, height: 32)
+                                    Image(systemName: resourceIconName(resource.type))
+                                        .font(.system(size: 13))
+                                        .foregroundStyle(resourceColor(resource.type))
+                                }
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(resource.title)
+                                        .font(CommandTypography.body)
+                                        .foregroundStyle(CommandColors.textPrimary)
+                                        .lineLimit(1)
+
+                                    Text(resourceTypeLabel(resource.type))
+                                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(resourceColor(resource.type).opacity(0.7))
+                                        .tracking(0.5)
+                                }
+
+                                Spacer()
+
+                                Image(systemName: "arrow.up.right")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundStyle(CommandColors.textTertiary)
+                                    .padding(6)
+                                    .background(CommandColors.surfaceElevated)
+                                    .clipShape(Circle())
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                        }
+
+                        if index < mission.resources.count - 1 {
+                            Divider()
+                                .background(CommandColors.surfaceBorder.opacity(0.5))
+                                .padding(.leading, 54)
+                        }
+                    }
+                }
+            }
+            .background(CommandColors.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(CommandColors.surfaceBorder, lineWidth: 0.5)
+            )
         }
     }
 
@@ -290,6 +530,15 @@ struct MissionDetailView: View {
             .background(CommandColors.surface)
             .clipShape(RoundedRectangle(cornerRadius: 10))
         }
+    }
+
+    private func addStep() {
+        guard !newStepTitle.isEmpty else { return }
+        Haptic.impact(.light)
+        let step = MissionStep(title: newStepTitle, orderIndex: mission.steps.count)
+        mission.steps.append(step)
+        try? context.save()
+        newStepTitle = ""
     }
 
     private func metadataRow(_ label: String, value: String) -> some View {

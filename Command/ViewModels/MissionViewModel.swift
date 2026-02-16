@@ -8,6 +8,8 @@ final class MissionViewModel {
     var decompositionError: String?
 
     private let aiService: any AIServiceProtocol = OnDeviceAIService()
+    private let fallbackService: any AIServiceProtocol = ManualAIService()
+    private let classroomService = ClassroomService()
     private let streakService = StreakService()
 
     func createMission(
@@ -111,10 +113,47 @@ final class MissionViewModel {
         decompositionError = nil
 
         do {
-            let result = try await aiService.decomposeMission(
-                title: mission.title,
-                description: mission.missionDescription
-            )
+            // Fetch Classroom materials if this is a Classroom mission
+            var materials: [MaterialContext] = []
+            if mission.source == .googleClassroom,
+               let courseId = mission.classroomCourseId,
+               let assignmentId = mission.classroomAssignmentId {
+                do {
+                    let courseWork = try await classroomService.fetchCourseWorkDetail(
+                        courseId: courseId, courseWorkId: assignmentId
+                    )
+                    materials = (courseWork.materials ?? []).compactMap { material -> MaterialContext? in
+                        if let video = material.youtubeVideo {
+                            return MaterialContext(title: video.title ?? "Video", type: .video, url: video.alternateLink)
+                        } else if let drive = material.driveFile?.driveFile {
+                            return MaterialContext(title: drive.title ?? "Document", type: .document, url: drive.alternateLink)
+                        } else if let link = material.link {
+                            return MaterialContext(title: link.title ?? link.url ?? "Link", type: .link, url: link.url)
+                        } else if let form = material.form {
+                            return MaterialContext(title: form.title ?? "Form", type: .form, url: form.formUrl)
+                        }
+                        return nil
+                    }
+                } catch {
+                    // Continue without materials if fetch fails
+                }
+            }
+
+            // Try on-device AI first, fall back to template-based decomposition
+            let result: AIDecomposition
+            do {
+                result = try await aiService.decomposeMission(
+                    title: mission.title,
+                    description: mission.missionDescription,
+                    materials: materials
+                )
+            } catch {
+                result = try await fallbackService.decomposeMission(
+                    title: mission.title,
+                    description: mission.missionDescription,
+                    materials: materials
+                )
+            }
 
             // Apply decomposition results
             mission.cognitiveLoad = result.cognitiveLoad
@@ -126,6 +165,16 @@ final class MissionViewModel {
                 step.estimatedMinutes = aiStep.estimatedMinutes
                 step.mission = mission
                 mission.steps.append(step)
+            }
+
+            // Create resources from Classroom materials
+            for material in materials {
+                if let url = material.url {
+                    let resourceType: ResourceType = material.type == .video ? .video : .article
+                    let resource = Resource(title: material.title, urlString: url, type: resourceType)
+                    resource.mission = mission
+                    mission.resources.append(resource)
+                }
             }
 
             // Create resources from search queries
