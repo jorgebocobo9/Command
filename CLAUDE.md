@@ -98,13 +98,31 @@ Owner: All Models and Services. Data layer and business logic.
 18. Verify all services compile, update CLAUDE.md
 
 ### Progress
-- [ ] (update as you go)
+- [x] Replace placeholder Enums.swift with full enum definitions (commit: 2edeccb)
+- [x] Replace placeholder Mission.swift with full model + totalActualMinutes (commit: 2edeccb)
+- [x] Replace placeholder MissionStep.swift with full model (commit: 2edeccb)
+- [x] Replace placeholder Resource.swift with full model + URL computed property (commit: 2edeccb)
+- [x] Replace placeholder FocusSession.swift with full model + durationMinutes (commit: 2edeccb)
+- [x] Replace placeholder EnergyProfile.swift with full model + update method (commit: 2edeccb)
+- [x] Replace placeholder Streak.swift with full model + recordActivity (commit: 2edeccb)
+- [x] Replace placeholder ClassroomCourse.swift with full model (commit: 2edeccb)
+- [x] Create KeychainService.swift (commit: 9c6f905)
+- [x] Create ClassroomService.swift with OAuth + REST API + DTOs (commit: 9c6f905)
+- [x] Create AIService.swift with Foundation Models + fallback (commit: 9c6f905)
+- [x] Create NotificationService.swift with categories/actions (commit: 9c6f905)
+- [x] Create AggressionScheduler.swift with escalating schedules (commit: 9c6f905)
+- [x] Create MicroStartGenerator.swift with fallback templates (commit: 9c6f905)
+- [x] Create EnergyService.swift with smart scheduling (commit: 9c6f905)
+- [x] Create StreakService.swift for momentum tracking (commit: 9c6f905)
+- [x] Create SyncService.swift with background sync (commit: 9c6f905)
+- [x] Verify all backend files compile (only frontend errors remain)
 
 ### Notes
-- See implementation plan for full code for each service
-- Classroom OAuth needs a Google Cloud project client ID (leave as empty string placeholder)
+- @Model classes require fully qualified enum defaults (e.g., `MissionSource.manual` not `.manual`)
+- #Predicate with Optional<String> comparisons need local variable with matching optionality
+- CharacterSet uses `.whitespacesAndNewlines` in Swift 6 (not `.whitespace`)
+- Classroom OAuth client ID left as empty string placeholder
 - Foundation Models import: `import FoundationModels` (iOS 26+)
-- Notification scheduling: use UNTimeIntervalNotificationTrigger and UNCalendarNotificationTrigger
 
 ---
 
