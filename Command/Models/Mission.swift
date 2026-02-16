@@ -6,11 +6,11 @@ final class Mission {
     var id: UUID = UUID()
     var title: String = ""
     var missionDescription: String = ""
-    var source: MissionSource = .manual
-    var category: MissionCategory = .school
-    var status: MissionStatus = .pending
-    var priority: MissionPriority = .medium
-    var aggressionLevel: AggressionLevel = .moderate
+    var source: MissionSource = MissionSource.manual
+    var category: MissionCategory = MissionCategory.school
+    var status: MissionStatus = MissionStatus.pending
+    var priority: MissionPriority = MissionPriority.medium
+    var aggressionLevel: AggressionLevel = AggressionLevel.moderate
     var deadline: Date?
     var createdAt: Date = Date()
     var completedAt: Date?

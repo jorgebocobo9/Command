@@ -6,7 +6,7 @@ final class Resource {
     var id: UUID = UUID()
     var title: String = ""
     var urlString: String = ""
-    var type: ResourceType = .article
+    var type: ResourceType = ResourceType.article
 
     var mission: Mission?
     var step: MissionStep?

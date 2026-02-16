@@ -3,7 +3,7 @@ import SwiftData
 
 @Model
 final class Streak {
-    var category: StreakCategory = .overall
+    var category: StreakCategory = StreakCategory.overall
     var currentCount: Int = 0
     var longestCount: Int = 0
     var lastActiveDate: Date = Date()
