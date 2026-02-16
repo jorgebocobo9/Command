@@ -47,10 +47,15 @@ struct MissionListView: View {
             VStack(spacing: 8) {
                 // Header
                 HStack {
-                    Text("MISSIONS")
-                        .font(.system(size: 13, weight: .bold, design: .monospaced))
-                        .foregroundStyle(CommandColors.textPrimary)
-                        .tracking(3)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("MISSIONS")
+                            .font(.system(size: 13, weight: .bold, design: .monospaced))
+                            .foregroundStyle(CommandColors.textPrimary)
+                            .tracking(3)
+                        Text("\(filteredMissions.count) active")
+                            .font(CommandTypography.caption)
+                            .foregroundStyle(CommandColors.textTertiary)
+                    }
                     Spacer()
                     Button {
                         Haptic.impact(.medium)
@@ -67,16 +72,27 @@ struct MissionListView: View {
                 // Search
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")
-                        .font(.system(size: 12))
+                        .font(.system(size: 14))
                         .foregroundStyle(CommandColors.textTertiary)
                     TextField("Search missions", text: $searchText)
                         .font(CommandTypography.body)
                         .foregroundStyle(CommandColors.textPrimary)
+                    if !searchText.isEmpty {
+                        Button {
+                            searchText = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(CommandColors.textTertiary)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
-                .padding(10)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
                 .background(CommandColors.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(CommandColors.surfaceBorder, lineWidth: 0.5))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(CommandColors.surfaceBorder, lineWidth: 0.5))
                 .padding(.horizontal, 16)
 
                 // Category filter

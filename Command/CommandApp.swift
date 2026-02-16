@@ -163,12 +163,14 @@ struct FocusLauncherView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     // Header
-                    HStack {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text("FOCUS")
                             .font(.system(size: 13, weight: .bold, design: .monospaced))
                             .foregroundStyle(CommandColors.textPrimary)
                             .tracking(3)
-                        Spacer()
+                        Text("Select a mission to start a focus session")
+                            .font(CommandTypography.caption)
+                            .foregroundStyle(CommandColors.textTertiary)
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 4)
@@ -181,12 +183,6 @@ struct FocusLauncherView: View {
                         )
                         .padding(.top, 40)
                     } else {
-                        Text("SELECT MISSION TO FOCUS")
-                            .font(CommandTypography.caption)
-                            .foregroundStyle(CommandColors.textTertiary)
-                            .tracking(1.5)
-                            .padding(.horizontal, 16)
-
                         ForEach(activeMissions, id: \.id) { mission in
                             MissionCard(mission: mission) {
                                 selectedMission = mission

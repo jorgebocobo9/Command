@@ -2,7 +2,7 @@ import SwiftUI
 
 struct MomentumStripView: View {
     let streaks: [Streak]
-    @State private var expanded = true
+    @State private var expanded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -51,7 +51,11 @@ struct MomentumStripView: View {
         }
         .padding(12)
         .background(CommandColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(CommandColors.surfaceBorder, lineWidth: 0.5)
+        )
     }
 }
 

@@ -56,7 +56,7 @@ struct DashboardView: View {
                     // Header with greeting
                     VStack(alignment: .leading, spacing: 4) {
                         Text(greeting)
-                            .font(CommandTypography.title)
+                            .font(CommandTypography.largeTitle)
                             .foregroundStyle(CommandColors.textPrimary)
 
                         Text(Date(), format: .dateTime.weekday(.wide).month().day())
@@ -65,7 +65,7 @@ struct DashboardView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
-                    .padding(.top, 4)
+                    .padding(.top, 8)
 
                     // Pressure Radar
                     PressureRadarView(

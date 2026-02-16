@@ -98,7 +98,6 @@ struct PressureRadarView: View {
     private func dayLabel(for offset: Int) -> String {
         let calendar = Calendar.current
         let date = calendar.date(byAdding: .day, value: offset, to: Date())!
-        if offset == 0 { return "NOW" }
         let formatter = DateFormatter()
         formatter.dateFormat = "EEE"
         return formatter.string(from: date).uppercased()
@@ -153,7 +152,7 @@ struct PressureRadarView: View {
                 .font(.system(size: 20, weight: .bold, design: .monospaced))
                 .foregroundStyle(count > 0 ? color : CommandColors.textTertiary)
             Text(label)
-                .font(.system(size: 8, weight: .semibold, design: .monospaced))
+                .font(.system(size: 10, weight: .semibold, design: .monospaced))
                 .foregroundStyle(CommandColors.textTertiary)
                 .tracking(0.5)
         }

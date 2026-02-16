@@ -26,13 +26,16 @@ struct ClassroomView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     // Header
-                    HStack {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text("CLASSROOM")
                             .font(.system(size: 13, weight: .bold, design: .monospaced))
                             .foregroundStyle(CommandColors.textPrimary)
                             .tracking(3)
-                        Spacer()
+                        Text("\(visibleCourses.count) courses synced")
+                            .font(CommandTypography.caption)
+                            .foregroundStyle(CommandColors.textTertiary)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                     .padding(.top, 4)
 

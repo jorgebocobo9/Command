@@ -4,6 +4,10 @@ struct MissionCard: View {
     let mission: Mission
     let onTap: () -> Void
 
+    private var categoryColor: Color {
+        CommandColors.categoryColor(mission.category)
+    }
+
     var body: some View {
         Button {
             Haptic.selection()
@@ -12,8 +16,8 @@ struct MissionCard: View {
             HStack(spacing: 12) {
                 // Category indicator bar
                 RoundedRectangle(cornerRadius: 2)
-                    .fill(CommandColors.categoryColor(mission.category))
-                    .frame(width: 4, height: 48)
+                    .fill(categoryColor)
+                    .frame(width: 4)
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(mission.title)
@@ -48,18 +52,28 @@ struct MissionCard: View {
 
                 // Step progress
                 if !mission.steps.isEmpty {
-                    CircularProgressView(progress: mission.stepProgress, color: CommandColors.categoryColor(mission.category))
+                    CircularProgressView(progress: mission.stepProgress, color: categoryColor)
                         .frame(width: 30, height: 30)
                 }
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
-            .background(CommandColors.surface)
+            .background(
+                mission.isOverdue
+                    ? CommandColors.urgent.opacity(0.04)
+                    : CommandColors.surface
+            )
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(mission.isOverdue ? CommandColors.urgent.opacity(0.3) : CommandColors.surfaceBorder, lineWidth: 0.5)
+                    .stroke(
+                        mission.isOverdue
+                            ? CommandColors.urgent.opacity(0.3)
+                            : CommandColors.surfaceBorder,
+                        lineWidth: mission.isOverdue ? 1 : 0.5
+                    )
             )
+            .glow(mission.isOverdue ? CommandColors.urgent : .clear, radius: 8, intensity: mission.isOverdue ? 0.15 : 0)
         }
         .buttonStyle(.plain)
     }

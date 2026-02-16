@@ -133,7 +133,11 @@ struct CourseRow: View {
             }
         }
         .background(CommandColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(CommandColors.surfaceBorder, lineWidth: 0.5)
+        )
         .opacity(course.isHidden ? 0.5 : 1)
     }
 }

@@ -10,10 +10,15 @@ struct EmptyStateView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            Image(systemName: icon)
-                .font(.system(size: 44, weight: .thin))
-                .foregroundStyle(accentColor.opacity(0.5))
-                .padding(.bottom, 4)
+            ZStack {
+                Circle()
+                    .fill(accentColor.opacity(0.06))
+                    .frame(width: 80, height: 80)
+                Image(systemName: icon)
+                    .font(.system(size: 36, weight: .thin))
+                    .foregroundStyle(accentColor.opacity(0.5))
+            }
+            .padding(.bottom, 4)
 
             Text(title)
                 .font(CommandTypography.headline)

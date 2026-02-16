@@ -12,13 +12,16 @@ struct IntelView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     // Header
-                    HStack {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text("INTEL")
                             .font(.system(size: 13, weight: .bold, design: .monospaced))
                             .foregroundStyle(CommandColors.textPrimary)
                             .tracking(3)
-                        Spacer()
+                        Text("Your productivity analytics")
+                            .font(CommandTypography.caption)
+                            .foregroundStyle(CommandColors.textTertiary)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                     .padding(.top, 4)
 
@@ -59,7 +62,7 @@ struct IntelView: View {
     }
 
     private var summaryRow: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 8) {
             statCard("Missions", value: "\(viewModel.totalMissionsCompleted)", color: CommandColors.school)
             statCard("Focus", value: "\(viewModel.totalFocusMinutes)m", color: CommandColors.personal)
             statCard("Streak", value: "\(longestStreak)d", color: CommandColors.warning)
@@ -81,8 +84,12 @@ struct IntelView: View {
                 .foregroundStyle(CommandColors.textTertiary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
+        .padding(.vertical, 14)
         .background(CommandColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(CommandColors.surfaceBorder, lineWidth: 0.5)
+        )
     }
 }

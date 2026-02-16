@@ -7,12 +7,13 @@ struct SyncStatusView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("SYNC STATUS")
-                    .font(CommandTypography.caption)
-                    .foregroundStyle(CommandColors.textTertiary)
-                    .tracking(1.5)
+            // Status dot
+            Circle()
+                .fill(statusColor)
+                .frame(width: 8, height: 8)
+                .glow(statusColor, radius: 4, intensity: 0.4)
 
+            VStack(alignment: .leading, spacing: 2) {
                 if let lastSynced {
                     Text("Last synced \(lastSynced, style: .relative) ago")
                         .font(CommandTypography.caption)
@@ -32,9 +33,17 @@ struct SyncStatusView: View {
                         .tint(CommandColors.school)
                         .scaleEffect(0.8)
                 } else {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .font(.system(size: 16))
-                        .foregroundStyle(CommandColors.school)
+                    HStack(spacing: 5) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 12))
+                        Text("Sync")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .foregroundStyle(CommandColors.school)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(CommandColors.school.opacity(0.1))
+                    .clipShape(Capsule())
                 }
             }
             .buttonStyle(.plain)
@@ -42,6 +51,16 @@ struct SyncStatusView: View {
         }
         .padding(12)
         .background(CommandColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(CommandColors.surfaceBorder, lineWidth: 0.5)
+        )
+    }
+
+    private var statusColor: Color {
+        if isSyncing { return CommandColors.school }
+        if lastSynced == nil { return CommandColors.warning }
+        return CommandColors.success
     }
 }
