@@ -1,4 +1,3 @@
-// Placeholder — Backend agent will replace with full SwiftData model
 import Foundation
 import SwiftData
 
@@ -39,5 +38,12 @@ final class Mission {
     var stepProgress: Double {
         guard !steps.isEmpty else { return 0 }
         return Double(steps.filter(\.isCompleted).count) / Double(steps.count)
+    }
+
+    var totalActualMinutes: Int {
+        focusSessions.reduce(0) { total, session in
+            guard let ended = session.endedAt else { return total }
+            return total + Int(ended.timeIntervalSince(session.startedAt) / 60)
+        }
     }
 }

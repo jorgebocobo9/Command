@@ -1,4 +1,3 @@
-// Placeholder — Backend agent will replace
 import Foundation
 import SwiftData
 

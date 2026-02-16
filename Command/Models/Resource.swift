@@ -1,4 +1,3 @@
-// Placeholder — Backend agent will replace
 import Foundation
 import SwiftData
 
@@ -8,8 +7,11 @@ final class Resource {
     var title: String = ""
     var urlString: String = ""
     var type: ResourceType = .article
+
     var mission: Mission?
     var step: MissionStep?
+
+    var url: URL? { URL(string: urlString) }
 
     init(title: String, urlString: String, type: ResourceType) {
         self.title = title

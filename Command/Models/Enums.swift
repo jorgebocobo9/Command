@@ -1,11 +1,54 @@
-// Placeholder — Backend agent will replace this with full enum definitions
 import Foundation
 
-enum MissionSource: String, Codable { case manual, googleClassroom }
-enum MissionCategory: String, Codable, CaseIterable { case school, work, personal }
-enum MissionStatus: String, Codable { case pending, inProgress, completed, abandoned }
-enum MissionPriority: String, Codable, CaseIterable { case low, medium, high, critical }
-enum AggressionLevel: String, Codable, CaseIterable { case gentle, moderate, aggressive, nuclear }
-enum CognitiveLoad: String, Codable, CaseIterable { case light, moderate, heavy, extreme }
-enum ResourceType: String, Codable { case video, article, documentation, tool }
-enum StreakCategory: String, Codable, CaseIterable { case school, work, personal, overall }
+enum MissionSource: String, Codable {
+    case manual
+    case googleClassroom
+}
+
+enum MissionCategory: String, Codable, CaseIterable {
+    case school
+    case work
+    case personal
+}
+
+enum MissionStatus: String, Codable {
+    case pending
+    case inProgress
+    case completed
+    case abandoned
+}
+
+enum MissionPriority: String, Codable, CaseIterable {
+    case low
+    case medium
+    case high
+    case critical
+}
+
+enum AggressionLevel: String, Codable, CaseIterable {
+    case gentle
+    case moderate
+    case aggressive
+    case nuclear
+}
+
+enum CognitiveLoad: String, Codable, CaseIterable {
+    case light
+    case moderate
+    case heavy
+    case extreme
+}
+
+enum ResourceType: String, Codable {
+    case video
+    case article
+    case documentation
+    case tool
+}
+
+enum StreakCategory: String, Codable, CaseIterable {
+    case school
+    case work
+    case personal
+    case overall
+}

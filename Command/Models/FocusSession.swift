@@ -1,4 +1,3 @@
-// Placeholder — Backend agent will replace
 import Foundation
 import SwiftData
 
@@ -10,9 +9,16 @@ final class FocusSession {
     var plannedMinutes: Int = 25
     var breaksTaken: Int = 0
     var wasCompleted: Bool = false
+
     var mission: Mission?
 
-    init(plannedMinutes: Int = 25) {
+    init(mission: Mission, plannedMinutes: Int = 25) {
+        self.mission = mission
         self.plannedMinutes = plannedMinutes
+    }
+
+    var durationMinutes: Int? {
+        guard let ended = endedAt else { return nil }
+        return Int(ended.timeIntervalSince(startedAt) / 60)
     }
 }

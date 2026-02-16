@@ -1,4 +1,3 @@
-// Placeholder — Backend agent will replace
 import Foundation
 import SwiftData
 
@@ -12,5 +11,11 @@ final class EnergyProfile {
     init(hourOfDay: Int, dayOfWeek: Int) {
         self.hourOfDay = hourOfDay
         self.dayOfWeek = dayOfWeek
+    }
+
+    func update(with productivity: Double) {
+        let newCount = sampleCount + 1
+        averageProductivity = ((averageProductivity * Double(sampleCount)) + productivity) / Double(newCount)
+        sampleCount = newCount
     }
 }

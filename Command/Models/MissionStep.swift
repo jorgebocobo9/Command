@@ -1,4 +1,3 @@
-// Placeholder — Backend agent will replace
 import Foundation
 import SwiftData
 
@@ -9,11 +8,13 @@ final class MissionStep {
     var isCompleted: Bool = false
     var orderIndex: Int = 0
     var estimatedMinutes: Int?
+
     @Relationship(deleteRule: .cascade) var resources: [Resource] = []
     var mission: Mission?
 
-    init(title: String, orderIndex: Int) {
+    init(title: String, orderIndex: Int, estimatedMinutes: Int? = nil) {
         self.title = title
         self.orderIndex = orderIndex
+        self.estimatedMinutes = estimatedMinutes
     }
 }
