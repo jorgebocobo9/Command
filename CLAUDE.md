@@ -1,245 +1,227 @@
-# Command - iOS Task Companion App
+# Nag - iOS Task Companion App
 
 ## Project Overview
-iOS mission control app for tracking schoolwork and professional tasks. Google Classroom sync, on-device AI task decomposition, customizable aggression-based reminders, dark minimalist UI.
+"Nag" (bundle name: Command) is an iOS mission control app for tracking schoolwork and professional tasks. Features Google Classroom sync, on-device AI task decomposition, customizable aggression-based reminders, focus sessions with Live Activities, and a dark minimalist UI.
+
+**App is fully built and functional.** All models, services, views, widgets, and Live Activities are implemented. The app runs on simulator and physical device (iPhone 17 Pro Max).
 
 ## Design & Plan Docs
 - Design: `docs/plans/2026-02-16-command-app-design.md`
 - Implementation Plan: `docs/plans/2026-02-16-command-implementation-plan.md`
 
 ## Tech Stack
-- SwiftUI, SwiftData (local only), iOS 26+
-- Apple Foundation Models (on-device AI)
+- SwiftUI, SwiftData (local only), Swift 6, iOS 26+
+- Apple Foundation Models (on-device AI) via `import FoundationModels`
 - Google Classroom REST API + OAuth 2.0
 - WidgetKit, ActivityKit (Live Activities)
-- XcodeGen for project generation
+- XcodeGen for project generation (`project.yml`)
+- No third-party dependencies
 
 ## Build Commands
 ```bash
 xcodegen generate
-xcodebuild -project Command.xcodeproj -scheme Command -destination 'platform=iOS Simulator,name=iPhone 16 Pro' build
+xcodebuild -project Command.xcodeproj -scheme Command -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
 ```
 
-## Rules for All Agents
-1. **Update your progress section** in this file after EACH completed task
-2. **Only modify files in your assigned list** — never touch another agent's files
-3. **Commit after each task** with prefix: `[backend]`, `[frontend]`, or `[manager]`
-4. **If blocked**, add a `BLOCKED:` note in your section with what you need and from whom
-5. **Run `xcodegen generate`** after creating new .swift files (so Xcode picks them up)
-6. Format: `- [x] Task description (commit: <short-sha>)` or `- [ ] Task in progress`
+**Important**: Run `xcodegen generate` after creating/deleting any `.swift` file so Xcode picks it up.
+
+## Physical Device
+- Device: Jorge17PM (iPhone 17 Pro Max)
+- Team ID: `63ZPJW7K2C`
+- Bundle ID: `com.jgbocobo.command`
+
+## Simulator
+- Available: iPhone 17 Pro (ID: `3BA75808-2C03-477B-9CB6-230425658660`), iPhone 17 Pro Max, iPhone 17, iPad variants
+- **No iPhone 16 Pro** — use iPhone 17 Pro for builds
 
 ---
 
-## Manager (Lead)
-Owner: CommandApp.swift, CLAUDE.md, integration, project config, conflict resolution
+## App Architecture
 
-### Assigned Files
-- `Command/CommandApp.swift`
-- `CLAUDE.md`
-- `project.yml`
-- `docs/`
+### Tab Structure (ContentView in CommandApp.swift)
+1. **Dashboard** — main view with urgency-sorted missions, overdue/due today/upcoming sections, settings gear, search
+2. **Classroom** — Google Classroom sync, course list, hide/show courses
+3. **Focus** — select a mission to start a Pomodoro-style focus session with Live Activity
+4. **Intel** — analytics dashboard with heatmap, momentum chart, task DNA chart
 
-### Responsibilities
-- Coordinate between Backend and Frontend agents
-- Handle integration: wire views into CommandApp.swift tabs
-- Resolve any build errors that span both domains
-- Final build verification
-- Update architecture decisions here
+### Key Patterns
+- **@Observable ViewModels** — `DashboardViewModel`, `MissionViewModel`, `ClassroomViewModel`, `FocusViewModel`, `IntelViewModel`
+- **SwiftData @Model** — `Mission`, `MissionStep`, `Resource`, `FocusSession`, `EnergyProfile`, `Streak`, `ClassroomCourse`
+- **@AppStorage for settings** — haptics, sounds, quiet hours, default aggression/category, accent color, aggression configs
+- **Dark theme only** — all views use `CommandColors.background` as base, `.preferredColorScheme(.dark)`
+- **NO emojis in UI**
 
-### Progress
-- [x] Scaffold project structure
-- [x] Create project.yml for XcodeGen
-- [x] Create placeholder models and app entry point
-- [ ] Wire real views into tab bar (after Frontend completes)
-- [ ] Final integration build
+### Notification System
+- `AppDelegate` in CommandApp.swift handles foreground notifications and action buttons (Complete, Snooze, Start Focus)
+- Uses `@preconcurrency import UserNotifications`, `@unchecked Sendable`, `nonisolated` for Swift 6 concurrency
+- `NotificationService` schedules via `UNUserNotificationCenter`
+- `AggressionScheduler` generates notification schedules per level, now fully configurable
 
----
+### Aggression System (Customizable)
+Each aggression level (gentle/moderate/aggressive/nuclear) has configurable:
+- **Notification count** (how many reminders before deadline)
+- **First reminder timing** (how early before deadline)
+- **Nuclear-only**: overdue repeat interval + overdue notification count
 
-## Backend Engineer
-Owner: All Models and Services. Data layer and business logic.
+Config stored in UserDefaults via `AggressionConfigStore`. Defaults:
+- Gentle: 1 notification, 24h before
+- Moderate: 5 notifications, 48h before
+- Aggressive: 8 notifications, 72h before
+- Nuclear: 8 pre-deadline (72h), + 8 overdue every 15min
 
-### Assigned Files (ONLY touch these)
-- `Command/Models/Enums.swift`
-- `Command/Models/Mission.swift`
-- `Command/Models/MissionStep.swift`
-- `Command/Models/Resource.swift`
-- `Command/Models/FocusSession.swift`
-- `Command/Models/EnergyProfile.swift`
-- `Command/Models/Streak.swift`
-- `Command/Models/ClassroomCourse.swift`
-- `Command/Services/AIService.swift` (create)
-- `Command/Services/ClassroomService.swift` (create)
-- `Command/Services/KeychainService.swift` (create)
-- `Command/Services/NotificationService.swift` (create)
-- `Command/Services/AggressionScheduler.swift` (create)
-- `Command/Services/EnergyService.swift` (create)
-- `Command/Services/StreakService.swift` (create)
-- `Command/Services/SyncService.swift` (create)
-- `Command/Services/MicroStartGenerator.swift` (create)
+### Urgent Mission Handling
+- **Nuclear overdue** → full-screen `NuclearInterstitialView` via `fullScreenCover(item: $nuclearMission)`
+- **Aggressive overdue** → `UrgentBannerView` banner at top
+- Uses `onChange(of: allMissions.count)` + 300ms delay in `.task` to handle @Query timing
 
-### Task List
-1. Replace placeholder Enums.swift with full enum definitions + CognitiveLoad.sortOrder extension
-2. Replace placeholder Mission.swift with full model (computed properties: isOverdue, stepProgress, totalActualMinutes)
-3. Replace placeholder MissionStep.swift with full model
-4. Replace placeholder Resource.swift with full model (URL computed property)
-5. Replace placeholder FocusSession.swift with full model (durationMinutes computed property)
-6. Replace placeholder EnergyProfile.swift with full model (update method with rolling average)
-7. Replace placeholder Streak.swift with full model (recordActivity with consecutive day logic)
-8. Replace placeholder ClassroomCourse.swift with full model
-9. Create KeychainService.swift — save/load/delete from iOS Keychain, string convenience methods
-10. Create ClassroomService.swift — Google OAuth via ASWebAuthenticationSession, REST API calls (fetchCourses, fetchCourseWork, fetchSubmissions), token refresh, DTOs
-11. Create AIService.swift — AIServiceProtocol, OnDeviceAIService (Foundation Models), ManualAIService fallback, response parsing
-12. Create NotificationService.swift — UNUserNotificationCenter scheduling, notification categories/actions (complete, snooze, start focus)
-13. Create AggressionScheduler.swift — calculate notification times per AggressionLevel, generate escalating content/tone
-14. Create MicroStartGenerator.swift — wrap AIService.generateMicroStart + fallback templates
-15. Create EnergyService.swift — record sessions, calculate current energy, suggest mission order
-16. Create StreakService.swift — record completions, get streaks
-17. Create SyncService.swift — Classroom sync orchestration, background task registration, conflict resolution
-18. Verify all services compile, update CLAUDE.md
+### Settings (SettingsView)
+Accessible via gear icon in DashboardView header. Sections:
+- Feedback: vibrations toggle, notification sounds
+- Quiet hours: toggle + start/end time pickers
+- Default aggression: AggressionSlider
+- Notification schedule: per-level customization → pushes to `AggressionConfigView`
+- Default category: school/work/personal
+- Accent color: 6 color options
+- Data: delete test data, reset all
 
-### Progress
-- [x] Replace placeholder Enums.swift with full enum definitions (commit: 2edeccb)
-- [x] Replace placeholder Mission.swift with full model + totalActualMinutes (commit: 2edeccb)
-- [x] Replace placeholder MissionStep.swift with full model (commit: 2edeccb)
-- [x] Replace placeholder Resource.swift with full model + URL computed property (commit: 2edeccb)
-- [x] Replace placeholder FocusSession.swift with full model + durationMinutes (commit: 2edeccb)
-- [x] Replace placeholder EnergyProfile.swift with full model + update method (commit: 2edeccb)
-- [x] Replace placeholder Streak.swift with full model + recordActivity (commit: 2edeccb)
-- [x] Replace placeholder ClassroomCourse.swift with full model (commit: 2edeccb)
-- [x] Create KeychainService.swift (commit: 9c6f905)
-- [x] Create ClassroomService.swift with OAuth + REST API + DTOs (commit: 9c6f905)
-- [x] Create AIService.swift with Foundation Models + fallback (commit: 9c6f905)
-- [x] Create NotificationService.swift with categories/actions (commit: 9c6f905)
-- [x] Create AggressionScheduler.swift with escalating schedules (commit: 9c6f905)
-- [x] Create MicroStartGenerator.swift with fallback templates (commit: 9c6f905)
-- [x] Create EnergyService.swift with smart scheduling (commit: 9c6f905)
-- [x] Create StreakService.swift for momentum tracking (commit: 9c6f905)
-- [x] Create SyncService.swift with background sync (commit: 9c6f905)
-- [x] Verify all backend files compile (only frontend errors remain)
-
-### Notes
-- @Model classes require fully qualified enum defaults (e.g., `MissionSource.manual` not `.manual`)
-- #Predicate with Optional<String> comparisons need local variable with matching optionality
-- CharacterSet uses `.whitespacesAndNewlines` in Swift 6 (not `.whitespace`)
-- Classroom OAuth client ID left as empty string placeholder
-- Foundation Models import: `import FoundationModels` (iOS 26+)
+### Live Activities
+- `FocusLiveActivity` — shows during focus sessions on Lock Screen + Dynamic Island
+- `DeadlineLiveActivity` — shows approaching deadlines
+- Widget extension embedded in main app via `project.yml` dependency
+- Attributes defined in `Shared/ActivityAttributes.swift`
 
 ---
 
-## Frontend Engineer
-Owner: All Views, ViewModels, Theme, Widgets, Live Activities. UI and presentation layer.
+## File Structure
 
-### Assigned Files (ONLY touch these)
-- `Command/Theme/Colors.swift` (create)
-- `Command/Theme/Typography.swift` (create)
-- `Command/Theme/Animations.swift` (create)
-- `Command/Theme/CommandTheme.swift` (create)
-- `Command/Views/Components/GlowEffect.swift` (create)
-- `Command/Views/Components/AggressionBadge.swift` (create)
-- `Command/Views/Components/MissionCard.swift` (create)
-- `Command/Views/Components/AnimatedCountdown.swift` (create)
-- `Command/Views/Components/UrgentBannerView.swift` (create)
-- `Command/Views/Components/NuclearInterstitialView.swift` (create)
-- `Command/Views/Dashboard/DashboardView.swift` (create)
-- `Command/Views/Dashboard/PressureRadarView.swift` (create)
-- `Command/Views/Dashboard/TodayMissionsView.swift` (create)
-- `Command/Views/Dashboard/MomentumStripView.swift` (create)
-- `Command/Views/Missions/MissionListView.swift` (create)
-- `Command/Views/Missions/MissionDetailView.swift` (create)
-- `Command/Views/Missions/MissionStepRow.swift` (create)
-- `Command/Views/Missions/CreateMissionView.swift` (create)
-- `Command/Views/Classroom/ClassroomView.swift` (create)
-- `Command/Views/Classroom/CourseListView.swift` (create)
-- `Command/Views/Classroom/SyncStatusView.swift` (create)
-- `Command/Views/Focus/FocusSessionView.swift` (create)
-- `Command/Views/Focus/FocusTimerView.swift` (create)
-- `Command/Views/Focus/BreakView.swift` (create)
-- `Command/Views/Intel/IntelView.swift` (create)
-- `Command/Views/Intel/HeatmapView.swift` (create)
-- `Command/Views/Intel/MomentumChartView.swift` (create)
-- `Command/Views/Intel/TaskDNAChartView.swift` (create)
-- `Command/Views/Onboarding/OnboardingView.swift` (create)
-- `Command/ViewModels/DashboardViewModel.swift` (create)
-- `Command/ViewModels/MissionViewModel.swift` (create)
-- `Command/ViewModels/ClassroomViewModel.swift` (create)
-- `Command/ViewModels/FocusViewModel.swift` (create)
-- `Command/ViewModels/IntelViewModel.swift` (create)
-- `CommandWidgets/CommandWidgetBundle.swift` (replace placeholder)
-- `CommandWidgets/SmallWidget.swift` (create)
-- `CommandWidgets/MediumWidget.swift` (create)
-- `CommandWidgets/LargeWidget.swift` (create)
-- `CommandWidgets/LiveActivity/FocusLiveActivity.swift` (create)
-- `CommandWidgets/LiveActivity/DeadlineLiveActivity.swift` (create)
+### Command/ (Main App Target)
+```
+CommandApp.swift          — App entry, ContentView with tabs, AppDelegate, FocusLauncherView
 
-### Task List
-1. Create Theme system: Colors.swift (hex init, all Command colors), Typography.swift (SF Pro scales), Animations.swift (spring/pulse/smooth), CommandTheme.swift (ViewModifier)
-2. Create GlowEffect.swift — GlowEffect + PulsingGlow view modifiers
-3. Create AggressionBadge.swift — signal-bar style indicator per aggression level
-4. Create MissionCard.swift — card with category bar, title, metadata, aggression badge, circular progress
-5. Create AnimatedCountdown.swift — live countdown with numericText transition, urgency colors
-6. Create PressureRadarView.swift — sonar radar with rings, sweep line, mission blips, tap interaction
-7. Create TodayMissionsView.swift — sorted mission list with energy indicator
-8. Create MomentumStripView.swift — expandable streak bars with flame animation
-9. Create DashboardViewModel.swift + DashboardView.swift — assemble dashboard tab
-10. Create MissionListView.swift — filterable list with category segments, search, swipe actions
-11. Create CreateMissionView.swift — form with AI decompose button
-12. Create MissionDetailView.swift — full detail with steps, resources, deadline, aggression picker
-13. Create MissionStepRow.swift — toggleable step row with progress
-14. Create MissionViewModel.swift — CRUD, AI decomposition trigger, step management
-15. Create FocusTimerView.swift — circular depleting ring timer with TimelineView
-16. Create BreakView.swift — adaptive break screen with movement prompts
-17. Create FocusSessionView.swift + FocusViewModel.swift — focus session state machine
-18. Create ClassroomView.swift + CourseListView.swift + SyncStatusView.swift — Classroom tab
-19. Create ClassroomViewModel.swift — drives sync via SyncService
-20. Create IntelView.swift — scrollable analytics dashboard
-21. Create HeatmapView.swift — GitHub-style contribution grid using Canvas
-22. Create MomentumChartView.swift + TaskDNAChartView.swift — line/bar charts
-23. Create IntelViewModel.swift — aggregate analytics data
-24. Create OnboardingView.swift — 3 screens (welcome, energy setup, Classroom connect)
-25. Create UrgentBannerView.swift + NuclearInterstitialView.swift — notification overlays
-26. Replace CommandWidgetBundle.swift + create Small/Medium/Large widgets
-27. Create FocusLiveActivity.swift + DeadlineLiveActivity.swift
-28. Verify all views compile, update CLAUDE.md
+Models/
+  Enums.swift             — MissionSource, MissionCategory, MissionStatus, MissionPriority,
+                            AggressionLevel, CognitiveLoad, ResourceType, StreakCategory
+  Mission.swift           — @Model with computed: isOverdue, stepProgress, urgencyScore
+  MissionStep.swift       — @Model for sub-tasks
+  Resource.swift          — @Model with URL computed property
+  FocusSession.swift      — @Model with durationMinutes
+  EnergyProfile.swift     — @Model with rolling average update
+  Streak.swift            — @Model with consecutive day logic
+  ClassroomCourse.swift   — @Model for Google Classroom courses
 
-### Progress
-- [x] Create Theme system (commit: 1b112ad)
-- [x] Create GlowEffect.swift (commit: 1b112ad)
-- [x] Create AggressionBadge.swift (commit: 1b112ad)
-- [x] Create MissionCard.swift (commit: 1b112ad)
-- [x] Create AnimatedCountdown.swift (commit: 1b112ad)
-- [x] Create PressureRadarView.swift (commit: 65bbda1)
-- [x] Create TodayMissionsView.swift (commit: 65bbda1)
-- [x] Create MomentumStripView.swift (commit: 65bbda1)
-- [x] Create DashboardViewModel.swift + DashboardView.swift (commit: 65bbda1)
-- [x] Create MissionListView.swift (commit: b095f9a)
-- [x] Create CreateMissionView.swift (commit: b095f9a)
-- [x] Create MissionDetailView.swift (commit: b095f9a)
-- [x] Create MissionStepRow.swift (commit: b095f9a)
-- [x] Create MissionViewModel.swift (commit: b095f9a)
-- [x] Create FocusTimerView.swift (commit: 3293f83)
-- [x] Create BreakView.swift (commit: 3293f83)
-- [x] Create FocusSessionView.swift + FocusViewModel.swift (commit: 3293f83)
-- [x] Create ClassroomView.swift + CourseListView.swift + SyncStatusView.swift (commit: 3293f83)
-- [x] Create ClassroomViewModel.swift (commit: 3293f83)
-- [x] Create IntelView.swift (commit: 3293f83)
-- [x] Create HeatmapView.swift (commit: 3293f83)
-- [x] Create MomentumChartView.swift + TaskDNAChartView.swift (commit: 3293f83)
-- [x] Create IntelViewModel.swift (commit: 3293f83)
-- [x] Create OnboardingView.swift (commit: 1108e76)
-- [x] Create UrgentBannerView.swift + NuclearInterstitialView.swift (commit: 1108e76)
-- [x] Replace CommandWidgetBundle.swift + create Small/Medium/Large widgets (commit: 1108e76)
-- [x] Create FocusLiveActivity.swift + DeadlineLiveActivity.swift (commit: 1108e76)
-- [x] Verify all views compile (commit: 463ba82)
+Services/
+  AggressionScheduler.swift   — AggressionLevelConfig, AggressionConfigStore, AggressionScheduler
+  AIService.swift             — Foundation Models + ManualAIService fallback
+  ClassroomService.swift      — OAuth + REST API + DTOs
+  EnergyService.swift         — energy tracking + mission ordering
+  HapticService.swift         — Haptic enum, respects hapticsEnabled toggle
+  KeychainService.swift       — iOS Keychain wrapper
+  MicroStartGenerator.swift   — AI micro-start + fallback templates
+  NotificationService.swift   — UNUserNotificationCenter scheduling + categories
+  StreakService.swift          — streak tracking
+  SyncService.swift            — Classroom sync orchestration
 
-### Notes
-- See implementation plan for full code for each component
-- Import models directly (same target): `Mission`, `MissionStep`, etc.
-- ViewModels use `@Observable` macro and `@Environment(\.modelContext)`
-- All views must use CommandColors.background as base, dark theme only
-- Aesthetic: dark mission control, minimalist, refined animations, subtle glows, SF Pro typography
-- NO emojis anywhere in the UI
+Theme/
+  Colors.swift            — CommandColors enum (hex init, all app colors)
+  Typography.swift        — CommandTypography (SF Pro scales)
+  Animations.swift        — CommandAnimations (spring/pulse/smooth)
+  CommandTheme.swift      — ViewModifier for theme
+
+ViewModels/
+  MissionViewModel.swift     — CRUD, AI decomposition, notifications
+  ClassroomViewModel.swift   — sync via SyncService
+  FocusViewModel.swift       — focus session state machine + Live Activity
+  IntelViewModel.swift       — analytics aggregation
+
+Views/
+  Components/
+    AggressionBadge.swift       — signal-bar indicator per level
+    AggressionSlider.swift      — segmented slider, reads config for sublabels
+    AnimatedCountdown.swift     — live countdown with urgency colors
+    EmptyStateView.swift        — reusable empty state
+    GlowEffect.swift            — glow + pulsing view modifiers
+    MissionCard.swift           — card with category bar, metadata, progress ring
+    NuclearInterstitialView.swift — full-screen nuclear alert
+    SectionHeader.swift         — reusable section header
+    UrgentBannerView.swift      — top banner for aggressive overdue
+  Dashboard/
+    DashboardView.swift         — main dashboard with settings gear, search, sections
+  Classroom/
+    ClassroomView.swift         — Classroom tab
+    CourseListView.swift        — course list
+    SyncStatusView.swift        — sync status indicator
+  Focus/
+    FocusSessionView.swift      — focus session flow
+    FocusTimerView.swift        — circular timer with TimelineView
+    BreakView.swift             — break screen with prompts
+  Intel/
+    IntelView.swift             — analytics dashboard
+    HeatmapView.swift           — GitHub-style grid via Canvas
+    MomentumChartView.swift     — line chart
+    TaskDNAChartView.swift      — bar chart
+  Missions/
+    CreateMissionView.swift     — form with AI decompose, reads default settings
+    MissionDetailView.swift     — full detail with steps, resources
+    MissionListView.swift       — filterable list (used within dashboard)
+    MissionStepRow.swift        — toggleable step row
+  Onboarding/
+    OnboardingView.swift        — 3-screen onboarding
+  Settings/
+    SettingsView.swift          — full settings page
+    AggressionConfigView.swift  — per-level aggression customization
+
+Intents/
+  AddMissionIntent.swift    — Siri shortcut to add mission
+  NagShortcuts.swift        — AppShortcutsProvider
+```
+
+### CommandWidgets/ (Widget Extension Target)
+```
+CommandWidgetBundle.swift       — widget bundle registration
+SmallWidget.swift               — small home screen widget
+MediumWidget.swift              — medium widget
+LargeWidget.swift               — large widget
+LiveActivity/
+  FocusLiveActivity.swift       — focus session Live Activity + Dynamic Island
+  DeadlineLiveActivity.swift    — deadline Live Activity
+```
+
+### Shared/ (Both Targets)
+```
+ActivityAttributes.swift    — FocusActivityAttributes, DeadlineActivityAttributes
+ColorHex.swift              — Color(hex:) extension
+```
 
 ---
 
-## Integration Log
-(Manager updates with merge issues, API contract changes, build status)
+## Known Issues & Gotchas
+
+### Swift 6 Concurrency
+- `@Model` classes require fully qualified enum defaults (e.g., `MissionSource.manual` not `.manual`)
+- `#Predicate` with `Optional<String>` needs local variable with matching optionality
+- `UNUserNotificationCenterDelegate` needs `@preconcurrency import`, `@unchecked Sendable`, `nonisolated`
+- Avoid `static let` for non-Sendable types (e.g., `UserDefaults.standard`) — use inline `UserDefaults.standard` calls
+
+### SwiftData @Query Timing
+- `@Query` results don't update instantly after `context.insert()` + `context.save()`
+- Use `onChange(of: collection.count)` or small `Task.sleep` delay when checking newly inserted data
+- `fullScreenCover(item:)` is preferred over `fullScreenCover(isPresented:)` + separate optional state
+
+### XcodeGen
+- Widget extension must be a dependency of the main app target (not the other way around)
+- Both targets need `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` for device install
+- Widget target needs `GENERATE_INFOPLIST_FILE: YES`
+
+### Other
+- Classroom OAuth client ID is empty string placeholder — needs real credentials
+- Foundation Models: `import FoundationModels` (iOS 26+), has `ManualAIService` fallback
+- `CharacterSet` uses `.whitespacesAndNewlines` in Swift 6 (not `.whitespace`)
+- The app display name is "Nag" (set via `PRODUCT_NAME` and `INFOPLIST_KEY_CFBundleDisplayName`)
+
+---
+
+## What's Not Yet Wired Up
+- **Quiet hours** — stored in UserDefaults but `NotificationService` doesn't check them before scheduling
+- **Notification sound toggle** — `notificationSoundEnabled` AppStorage not checked in `NotificationService`
+- **Accent color** — `accentColorHex` stored but `CommandColors` still uses hardcoded colors (only Settings uses it)
+- **Classroom OAuth** — client ID is empty placeholder, needs real Google Cloud credentials
