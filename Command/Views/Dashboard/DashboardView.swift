@@ -9,6 +9,9 @@ struct DashboardView: View {
     @State private var selectedMission: Mission?
     @State private var showCreateMission = false
     @State private var focusMission: Mission?
+    @State private var searchText = ""
+    @State private var isSearching = false
+    @State private var selectedCategory: MissionCategory?
 
     private var hiddenCourseIds: Set<String> {
         Set(courses.filter { $0.isHidden }.map { $0.courseId })
@@ -22,9 +25,18 @@ struct DashboardView: View {
         }
     }
 
-    // Auto-prioritized by urgency score
     private var sortedMissions: [Mission] {
-        activeMissions.sorted { $0.urgencyScore > $1.urgencyScore }
+        var result = activeMissions
+
+        if let category = selectedCategory {
+            result = result.filter { $0.category == category }
+        }
+
+        if !searchText.isEmpty {
+            result = result.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
+        }
+
+        return result.sorted { $0.urgencyScore > $1.urgencyScore }
     }
 
     private var overdueMissions: [Mission] {
@@ -49,12 +61,30 @@ struct DashboardView: View {
         }
     }
 
-    // Daily briefing: top missions to tackle today, ordered by urgency
+    private var completedMissions: [Mission] {
+        var result = allMissions.filter { mission in
+            guard mission.status == .completed else { return false }
+            if let courseId = mission.classroomCourseId, hiddenCourseIds.contains(courseId) { return false }
+            return true
+        }
+        if let category = selectedCategory {
+            result = result.filter { $0.category == category }
+        }
+        return result
+    }
+
     private var dailyPlan: [Mission] {
-        let urgent = overdueMissions + dueTodayMissions
+        let allActive = activeMissions.sorted { $0.urgencyScore > $1.urgencyScore }
+        let overdue = allActive.filter { $0.isOverdue }
+        let calendar = Calendar.current
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date()))!
+        let today = allActive.filter { mission in
+            guard let deadline = mission.deadline else { return false }
+            return !mission.isOverdue && deadline <= endOfDay
+        }
+        let urgent = overdue + today
         if urgent.isEmpty {
-            // No urgent tasks — suggest top 3 by score
-            return Array(sortedMissions.prefix(3))
+            return Array(allActive.prefix(3))
         }
         return urgent
     }
@@ -82,66 +112,34 @@ struct DashboardView: View {
             CommandColors.background.ignoresSafeArea()
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 16) {
                     // Header
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(greeting)
-                                .font(CommandTypography.largeTitle)
-                                .foregroundStyle(CommandColors.textPrimary)
+                    header
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
 
-                            Text(Date(), format: .dateTime.weekday(.wide).month().day())
-                                .font(CommandTypography.caption)
-                                .foregroundStyle(CommandColors.textTertiary)
-                        }
-
-                        Spacer()
-
-                        if currentStreak > 0 {
-                            HStack(spacing: 4) {
-                                Image(systemName: "flame.fill")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(CommandColors.warning)
-                                Text("\(currentStreak)")
-                                    .font(.system(size: 14, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(CommandColors.textPrimary)
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(CommandColors.warning.opacity(0.1))
-                            .clipShape(Capsule())
-                        }
+                    // Search bar (shown when searching)
+                    if isSearching {
+                        searchBar
+                            .padding(.horizontal, 16)
+                            .transition(.move(edge: .top).combined(with: .opacity))
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
 
-                    // Quick stats
-                    HStack(spacing: 8) {
-                        quickStat(
-                            count: overdueMissions.count,
-                            label: "Overdue",
-                            color: CommandColors.urgent
-                        )
-                        quickStat(
-                            count: dueTodayMissions.count,
-                            label: "Today",
-                            color: CommandColors.warning
-                        )
-                        quickStat(
-                            count: activeMissions.count,
-                            label: "Active",
-                            color: CommandColors.school
-                        )
+                    // Category filter
+                    if isSearching || !activeMissions.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            categoryFilter
+                        }
+                        .padding(.horizontal, 16)
                     }
-                    .padding(.horizontal, 16)
 
-                    // Daily Briefing
-                    if !activeMissions.isEmpty {
+                    // Daily Briefing (hide when searching)
+                    if !isSearching && !activeMissions.isEmpty {
                         dailyBriefing
                     }
 
-                    // Mission sections
-                    if activeMissions.isEmpty {
+                    // Missions
+                    if sortedMissions.isEmpty && completedMissions.isEmpty && !isSearching {
                         EmptyStateView(
                             icon: "checkmark.seal",
                             title: "No missions yet",
@@ -150,30 +148,19 @@ struct DashboardView: View {
                             action: { showCreateMission = true }
                         )
                         .padding(.top, 20)
+                    } else if sortedMissions.isEmpty && isSearching {
+                        VStack(spacing: 8) {
+                            Text("No results")
+                                .font(CommandTypography.headline)
+                                .foregroundStyle(CommandColors.textSecondary)
+                            Text("Try a different search or category")
+                                .font(CommandTypography.caption)
+                                .foregroundStyle(CommandColors.textTertiary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 40)
                     } else {
-                        if !overdueMissions.isEmpty {
-                            missionSection("OVERDUE", missions: overdueMissions, color: CommandColors.urgent)
-                        }
-
-                        if !dueTodayMissions.isEmpty {
-                            missionSection("DUE TODAY", missions: dueTodayMissions, color: CommandColors.warning)
-                        }
-
-                        if !upcomingMissions.isEmpty {
-                            missionSection("UPCOMING", missions: upcomingMissions, color: CommandColors.textTertiary)
-                        }
-
-                        if overdueMissions.isEmpty && dueTodayMissions.isEmpty && !upcomingMissions.isEmpty {
-                            HStack(spacing: 8) {
-                                Image(systemName: "checkmark.circle")
-                                    .font(.system(size: 14))
-                                    .foregroundStyle(CommandColors.success)
-                                Text("Nothing due today")
-                                    .font(CommandTypography.caption)
-                                    .foregroundStyle(CommandColors.textSecondary)
-                            }
-                            .padding(.horizontal, 16)
-                        }
+                        missionList
                     }
                 }
                 .padding(.bottom, 100)
@@ -210,6 +197,135 @@ struct DashboardView: View {
         }
     }
 
+    // MARK: - Header
+
+    private var header: some View {
+        HStack(alignment: .top) {
+            if isSearching {
+                // Compact when searching
+                Text(greeting)
+                    .font(CommandTypography.headline)
+                    .foregroundStyle(CommandColors.textPrimary)
+            } else {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(greeting)
+                        .font(CommandTypography.largeTitle)
+                        .foregroundStyle(CommandColors.textPrimary)
+
+                    Text(Date(), format: .dateTime.weekday(.wide).month().day())
+                        .font(CommandTypography.caption)
+                        .foregroundStyle(CommandColors.textTertiary)
+                }
+            }
+
+            Spacer()
+
+            HStack(spacing: 10) {
+                // Search toggle
+                Button {
+                    withAnimation(CommandAnimations.springQuick) {
+                        isSearching.toggle()
+                        if !isSearching {
+                            searchText = ""
+                            selectedCategory = nil
+                        }
+                    }
+                } label: {
+                    Image(systemName: isSearching ? "xmark" : "magnifyingglass")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(CommandColors.textSecondary)
+                        .frame(width: 36, height: 36)
+                        .background(CommandColors.surface)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+
+                // Streak badge
+                if currentStreak > 0 && !isSearching {
+                    HStack(spacing: 4) {
+                        Image(systemName: "flame.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(CommandColors.warning)
+                        Text("\(currentStreak)")
+                            .font(.system(size: 14, weight: .bold, design: .monospaced))
+                            .foregroundStyle(CommandColors.textPrimary)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(CommandColors.warning.opacity(0.1))
+                    .clipShape(Capsule())
+                }
+            }
+        }
+    }
+
+    // MARK: - Search
+
+    private var searchBar: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 14))
+                .foregroundStyle(CommandColors.textTertiary)
+            TextField("Search missions...", text: $searchText)
+                .font(CommandTypography.body)
+                .foregroundStyle(CommandColors.textPrimary)
+                .textInputAutocapitalization(.never)
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(CommandColors.textTertiary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(CommandColors.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(CommandColors.surfaceBorder, lineWidth: 0.5))
+    }
+
+    // MARK: - Category Filter
+
+    private var categoryFilter: some View {
+        HStack(spacing: 8) {
+            categoryPill(nil, label: "All")
+            ForEach(MissionCategory.allCases, id: \.self) { cat in
+                categoryPill(cat, label: cat.rawValue.capitalized)
+            }
+        }
+    }
+
+    private func categoryPill(_ category: MissionCategory?, label: String) -> some View {
+        Button {
+            Haptic.selection()
+            withAnimation(CommandAnimations.springQuick) {
+                selectedCategory = selectedCategory == category ? nil : category
+            }
+        } label: {
+            Text(label)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(selectedCategory == category ? CommandColors.textPrimary : CommandColors.textTertiary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(selectedCategory == category ? CommandColors.surfaceElevated : Color.clear)
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule()
+                        .stroke(
+                            selectedCategory == category
+                                ? (category.map { CommandColors.categoryColor($0) } ?? CommandColors.textSecondary).opacity(0.5)
+                                : CommandColors.surfaceBorder,
+                            lineWidth: 0.5
+                        )
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: - Daily Briefing
 
     private var dailyBriefing: some View {
@@ -217,14 +333,13 @@ struct DashboardView: View {
             HStack {
                 SectionHeader("YOUR PLAN")
                 Spacer()
-                Text("\(dailyPlanMinutes)m total")
+                Text("\(dailyPlanMinutes)m")
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
                     .foregroundStyle(CommandColors.textTertiary)
             }
 
             ForEach(Array(dailyPlan.enumerated()), id: \.element.id) { index, mission in
                 HStack(spacing: 12) {
-                    // Order number
                     Text("\(index + 1)")
                         .font(.system(size: 13, weight: .bold, design: .monospaced))
                         .foregroundStyle(CommandColors.categoryColor(mission.category))
@@ -258,7 +373,6 @@ struct DashboardView: View {
 
                     Spacer()
 
-                    // Quick focus button
                     Button {
                         Haptic.impact(.light)
                         focusMission = mission
@@ -295,25 +409,38 @@ struct DashboardView: View {
         .padding(.horizontal, 16)
     }
 
-    // MARK: - Components
+    // MARK: - Mission List
 
-    private func quickStat(count: Int, label: String, color: Color) -> some View {
-        VStack(spacing: 2) {
-            Text("\(count)")
-                .font(.system(size: 24, weight: .bold, design: .monospaced))
-                .foregroundStyle(count > 0 ? color : CommandColors.textTertiary)
-            Text(label)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(CommandColors.textTertiary)
+    private var missionList: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if !overdueMissions.isEmpty {
+                missionSection("OVERDUE", missions: overdueMissions, color: CommandColors.urgent)
+            }
+
+            if !dueTodayMissions.isEmpty {
+                missionSection("DUE TODAY", missions: dueTodayMissions, color: CommandColors.warning)
+            }
+
+            if !upcomingMissions.isEmpty {
+                missionSection("UPCOMING", missions: upcomingMissions, color: CommandColors.textTertiary)
+            }
+
+            if overdueMissions.isEmpty && dueTodayMissions.isEmpty && !upcomingMissions.isEmpty && !isSearching {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle")
+                        .font(.system(size: 14))
+                        .foregroundStyle(CommandColors.success)
+                    Text("Nothing due today")
+                        .font(CommandTypography.caption)
+                        .foregroundStyle(CommandColors.textSecondary)
+                }
+                .padding(.horizontal, 16)
+            }
+
+            if !completedMissions.isEmpty {
+                completedSection
+            }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .background(count > 0 ? color.opacity(0.06) : CommandColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(count > 0 ? color.opacity(0.2) : CommandColors.surfaceBorder, lineWidth: 0.5)
-        )
     }
 
     private func missionSection(_ title: String, missions: [Mission], color: Color) -> some View {
@@ -332,10 +459,91 @@ struct DashboardView: View {
             .padding(.horizontal, 16)
 
             ForEach(missions, id: \.id) { mission in
-                MissionCard(mission: mission) {
-                    selectedMission = mission
+                missionRow(mission)
+            }
+        }
+    }
+
+    private func missionRow(_ mission: Mission) -> some View {
+        MissionCard(mission: mission) {
+            selectedMission = mission
+        }
+        .padding(.horizontal, 16)
+        .contextMenu {
+            Button {
+                Haptic.notification(.success)
+                mission.status = .completed
+                mission.completedAt = Date()
+                Task { await NotificationService.shared.cancelNotifications(for: mission.id.uuidString) }
+                try? context.save()
+            } label: {
+                Label("Complete", systemImage: "checkmark.circle")
+            }
+
+            Button {
+                focusMission = mission
+            } label: {
+                Label("Focus", systemImage: "scope")
+            }
+
+            Divider()
+
+            Button {
+                mission.status = .abandoned
+                Task { await NotificationService.shared.cancelNotifications(for: mission.id.uuidString) }
+                try? context.save()
+            } label: {
+                Label("Abandon", systemImage: "xmark.circle")
+            }
+
+            Button(role: .destructive) {
+                Haptic.notification(.warning)
+                let missionId = mission.id.uuidString
+                Task { await NotificationService.shared.cancelNotifications(for: missionId) }
+                context.delete(mission)
+                try? context.save()
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+
+    // MARK: - Completed
+
+    @State private var showCompleted = false
+
+    private var completedSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                withAnimation(CommandAnimations.springQuick) {
+                    showCompleted.toggle()
                 }
-                .padding(.horizontal, 16)
+            } label: {
+                HStack(spacing: 6) {
+                    Text("COMPLETED")
+                        .font(CommandTypography.caption)
+                        .foregroundStyle(CommandColors.textTertiary)
+                        .tracking(1.5)
+                    Text("\(completedMissions.count)")
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundStyle(CommandColors.textTertiary)
+                    Spacer()
+                    Image(systemName: showCompleted ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(CommandColors.textTertiary)
+                }
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 16)
+
+            if showCompleted {
+                ForEach(completedMissions, id: \.id) { mission in
+                    MissionCard(mission: mission) {
+                        selectedMission = mission
+                    }
+                    .opacity(0.5)
+                    .padding(.horizontal, 16)
+                }
             }
         }
     }

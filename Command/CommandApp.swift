@@ -60,16 +60,13 @@ struct ContentView: View {
                     Tab("Dashboard", systemImage: "gauge.open.with.lines.needle.33percent", value: 0) {
                         DashboardView()
                     }
-                    Tab("Missions", systemImage: "target", value: 1) {
-                        MissionListView()
-                    }
-                    Tab("Classroom", systemImage: "graduationcap", value: 2) {
+                    Tab("Classroom", systemImage: "graduationcap", value: 1) {
                         ClassroomView()
                     }
-                    Tab("Focus", systemImage: "scope", value: 3) {
+                    Tab("Focus", systemImage: "scope", value: 2) {
                         FocusLauncherView()
                     }
-                    Tab("Intel", systemImage: "chart.bar.xaxis.ascending", value: 4) {
+                    Tab("Intel", systemImage: "chart.bar.xaxis.ascending", value: 3) {
                         IntelView()
                     }
                 }
