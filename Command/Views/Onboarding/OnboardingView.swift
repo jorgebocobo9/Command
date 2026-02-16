@@ -49,15 +49,15 @@ struct OnboardingView: View {
         VStack(spacing: 24) {
             Spacer()
 
-            Image(systemName: "scope")
-                .font(.system(size: 64, weight: .thin))
+            Image(systemName: "exclamationmark")
+                .font(.system(size: 64, weight: .bold))
                 .foregroundStyle(CommandColors.school)
 
-            Text("Command")
+            Text("Nag")
                 .font(.system(size: 40, weight: .bold))
                 .foregroundStyle(CommandColors.textPrimary)
 
-            Text("Your personal mission control for tasks, focus, and momentum.")
+            Text("The app that won't shut up until you're done.")
                 .font(CommandTypography.body)
                 .foregroundStyle(CommandColors.textSecondary)
                 .multilineTextAlignment(.center)

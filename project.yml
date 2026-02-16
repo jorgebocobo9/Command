@@ -23,6 +23,9 @@ targets:
         INFOPLIST_FILE: Command/Info.plist
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: com.jgbocobo.command
+        PRODUCT_NAME: Nag
+        INFOPLIST_KEY_CFBundleDisplayName: Nag
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SUPPORTS_LIVE_ACTIVITIES: YES
     entitlements:
       path: Command/Command.entitlements
