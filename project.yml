@@ -9,7 +9,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    DEVELOPMENT_TEAM: ""
+    DEVELOPMENT_TEAM: "63ZPJW7K2C"
 
 targets:
   Command:
@@ -27,11 +27,15 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: Nag
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SUPPORTS_LIVE_ACTIVITIES: YES
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
     entitlements:
       path: Command/Command.entitlements
       properties:
         com.apple.security.application-groups:
           - group.com.jgbocobo.command
+    dependencies:
+      - target: CommandWidgets
 
   CommandWidgets:
     type: app-extension
@@ -42,12 +46,12 @@ targets:
     settings:
       base:
         INFOPLIST_FILE: CommandWidgets/Info.plist
+        GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: com.jgbocobo.command.widgets
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
     entitlements:
       path: CommandWidgets/CommandWidgets.entitlements
       properties:
         com.apple.security.application-groups:
           - group.com.jgbocobo.command
-    dependencies:
-      - target: Command
-        embed: false
