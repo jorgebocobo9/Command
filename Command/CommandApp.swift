@@ -35,40 +35,75 @@ struct ContentView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             Tab("Dashboard", systemImage: "gauge.open.with.lines.needle.33percent", value: 0) {
-                // DashboardView() — Agent Frontend builds this
-                PlaceholderTab(name: "Dashboard")
+                DashboardView()
             }
             Tab("Missions", systemImage: "target", value: 1) {
-                // MissionListView() — Agent Frontend builds this
-                PlaceholderTab(name: "Missions")
+                MissionListView()
             }
             Tab("Classroom", systemImage: "graduationcap", value: 2) {
-                // ClassroomView() — Agent Frontend builds this
-                PlaceholderTab(name: "Classroom")
+                ClassroomView()
             }
             Tab("Focus", systemImage: "scope", value: 3) {
-                // FocusSessionView() — Agent Frontend builds this
-                PlaceholderTab(name: "Focus")
+                FocusLauncherView()
             }
             Tab("Intel", systemImage: "chart.bar.xaxis.ascending", value: 4) {
-                // IntelView() — Agent Frontend builds this
-                PlaceholderTab(name: "Intel")
+                IntelView()
             }
         }
-        .preferredColorScheme(.dark)
+        .commandTheme()
     }
 }
 
-struct PlaceholderTab: View {
-    let name: String
+struct FocusLauncherView: View {
+    @Query private var allMissions: [Mission]
+    private var activeMissions: [Mission] {
+        allMissions.filter { $0.status != .completed && $0.status != .abandoned }
+    }
+
+    @State private var selectedMission: Mission?
 
     var body: some View {
-        ZStack {
-            Color(red: 0.04, green: 0.04, blue: 0.06)
-                .ignoresSafeArea()
-            Text(name)
-                .font(.title)
-                .foregroundStyle(.white.opacity(0.3))
+        NavigationStack {
+            ZStack {
+                CommandColors.background.ignoresSafeArea()
+
+                if activeMissions.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "scope")
+                            .font(.system(size: 48, weight: .thin))
+                            .foregroundStyle(CommandColors.textTertiary)
+                        Text("No active missions")
+                            .font(CommandTypography.headline)
+                            .foregroundStyle(CommandColors.textSecondary)
+                        Text("Create a mission first, then start a focus session")
+                            .font(CommandTypography.caption)
+                            .foregroundStyle(CommandColors.textTertiary)
+                    }
+                } else {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("SELECT MISSION TO FOCUS")
+                                .font(CommandTypography.caption)
+                                .foregroundStyle(CommandColors.textTertiary)
+                                .tracking(1.5)
+                                .padding(.horizontal)
+
+                            ForEach(activeMissions, id: \.id) { mission in
+                                MissionCard(mission: mission) {
+                                    selectedMission = mission
+                                }
+                                .padding(.horizontal)
+                            }
+                        }
+                        .padding(.top)
+                    }
+                }
+            }
+            .navigationTitle("Focus")
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .fullScreenCover(item: $selectedMission) { mission in
+                FocusSessionView(mission: mission)
+            }
         }
     }
 }
