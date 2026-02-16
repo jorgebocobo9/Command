@@ -7,6 +7,8 @@ struct MissionDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var newStepTitle = ""
     @State private var showAddStep = false
+    @State private var stepsExpanded = false
+    @State private var resourcesExpanded = false
     @State private var viewModel = MissionViewModel()
 
     var body: some View {
@@ -232,25 +234,36 @@ struct MissionDetailView: View {
 
     private var stepsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Section header
-            HStack(alignment: .center) {
-                Text("STEPS")
-                    .font(CommandTypography.caption)
-                    .foregroundStyle(CommandColors.textTertiary)
-                    .tracking(1.5)
+            // Tappable section header
+            Button {
+                withAnimation(CommandAnimations.springQuick) { stepsExpanded.toggle() }
+            } label: {
+                HStack(alignment: .center) {
+                    Text("STEPS")
+                        .font(CommandTypography.caption)
+                        .foregroundStyle(CommandColors.textTertiary)
+                        .tracking(1.5)
 
-                Spacer()
+                    Spacer()
 
-                if !mission.steps.isEmpty {
-                    Text("\(completedCount)/\(mission.steps.count)")
-                        .font(.system(size: 13, weight: .bold, design: .monospaced))
-                        .foregroundStyle(completedCount == mission.steps.count && !mission.steps.isEmpty
-                            ? CommandColors.success
-                            : CommandColors.textSecondary)
+                    if !mission.steps.isEmpty {
+                        Text("\(completedCount)/\(mission.steps.count)")
+                            .font(.system(size: 13, weight: .bold, design: .monospaced))
+                            .foregroundStyle(completedCount == mission.steps.count && !mission.steps.isEmpty
+                                ? CommandColors.success
+                                : CommandColors.textSecondary)
+                    }
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(CommandColors.textTertiary)
+                        .rotationEffect(.degrees(stepsExpanded ? 90 : 0))
                 }
             }
+            .buttonStyle(.plain)
             .padding(.bottom, 10)
 
+            if stepsExpanded {
             // Steps container
             VStack(spacing: 0) {
                 if mission.steps.isEmpty && !showAddStep {
@@ -396,6 +409,7 @@ struct MissionDetailView: View {
                 .padding(.top, 8)
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
+            } // end stepsExpanded
         }
     }
 
@@ -430,21 +444,32 @@ struct MissionDetailView: View {
 
     private var resourcesSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Section header
-            HStack {
-                Text("RESOURCES")
-                    .font(CommandTypography.caption)
-                    .foregroundStyle(CommandColors.textTertiary)
-                    .tracking(1.5)
+            // Tappable section header
+            Button {
+                withAnimation(CommandAnimations.springQuick) { resourcesExpanded.toggle() }
+            } label: {
+                HStack {
+                    Text("RESOURCES")
+                        .font(CommandTypography.caption)
+                        .foregroundStyle(CommandColors.textTertiary)
+                        .tracking(1.5)
 
-                Spacer()
+                    Spacer()
 
-                Text("\(mission.resources.count)")
-                    .font(.system(size: 13, weight: .bold, design: .monospaced))
-                    .foregroundStyle(CommandColors.textSecondary)
+                    Text("\(mission.resources.count)")
+                        .font(.system(size: 13, weight: .bold, design: .monospaced))
+                        .foregroundStyle(CommandColors.textSecondary)
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(CommandColors.textTertiary)
+                        .rotationEffect(.degrees(resourcesExpanded ? 90 : 0))
+                }
             }
+            .buttonStyle(.plain)
             .padding(.bottom, 10)
 
+            if resourcesExpanded {
             // Resources container
             VStack(spacing: 0) {
                 ForEach(Array(mission.resources.enumerated()), id: \.element.id) { index, resource in
@@ -500,6 +525,7 @@ struct MissionDetailView: View {
                 RoundedRectangle(cornerRadius: 10)
                     .stroke(CommandColors.surfaceBorder, lineWidth: 0.5)
             )
+            } // end resourcesExpanded
         }
     }
 
