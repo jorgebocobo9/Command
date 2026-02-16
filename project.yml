@@ -1,0 +1,47 @@
+name: Command
+options:
+  bundleIdPrefix: com.jgbocobo
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    DEVELOPMENT_TEAM: ""
+
+targets:
+  Command:
+    type: application
+    platform: iOS
+    sources:
+      - Command
+    settings:
+      base:
+        INFOPLIST_FILE: Command/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.jgbocobo.command
+        SUPPORTS_LIVE_ACTIVITIES: YES
+    entitlements:
+      path: Command/Command.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.jgbocobo.command
+
+  CommandWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - CommandWidgets
+    settings:
+      base:
+        INFOPLIST_FILE: CommandWidgets/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.jgbocobo.command.widgets
+    entitlements:
+      path: CommandWidgets/CommandWidgets.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.jgbocobo.command
+    dependencies:
+      - target: Command
+        embed: false
